@@ -1,9 +1,13 @@
 from typing import Annotated
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Depends, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.templating import Jinja2Templates
 import validators
 from starlette.datastructures import URL
+
+
 
 from sqlalchemy.orm import Session
 
@@ -13,6 +17,7 @@ from .config import get_settings
 
 app = FastAPI()
 models.Base.metadata.create_all(bind=engine)
+templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 def raise_bad_request(message):
     raise HTTPException(status_code=400,
@@ -40,9 +45,13 @@ def get_admin_info(db_url: models.URL) -> schemas.URLInfo:
 
 DBSession = Annotated[Session, Depends(get_db)]
 
-@app.get("/")
-def read_root():
-    return "Welcome to the URL shortener API :)"
+@app.get("/", response_class=HTMLResponse, name="home")
+def read_root(request: Request):
+    return templates.TemplateResponse(request, "index.html")
+
+@app.get("/url", response_class=HTMLResponse, name="create url page")
+def create_url_page(request: Request):
+    return templates.TemplateResponse(request, "create-key.html")
 
 @app.post("/url", response_model=schemas.URLInfo)
 def create_url(url: schemas.URLBase, db: DBSession):
@@ -72,5 +81,13 @@ def forward_to_target_url(
 def get_url_info(secret_key: str, request: Request, db: DBSession):
     if db_url := crud.get_db_url_by_secret_key(db, secret_key=secret_key):
         return get_admin_info(db_url)
+    else:
+        raise_not_found(request)
+
+@app.delete("/admin/{secret_key}")
+def delete_url(secret_key: str, request: Request, db: DBSession):
+    if db_url := crud.deactivate_db_url(db, secret_key=secret_key):
+        message = f"Successfully deleted shortened URL for '{db_url.target_url}'"
+        return {"detail": message}
     else:
         raise_not_found(request)

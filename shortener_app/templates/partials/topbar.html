@@ -1,0 +1,26 @@
+{#
+  Shared top bar. Include it with:
+    {% set active_page = "home" %}
+    {% include "partials/topbar.html" %}
+  active_page is the route name of the current page; its link gets the "current" underline.
+  Set show_admin_badge = true to show the red "Admin" badge next to the logo.
+#}
+{% set nav_items = [
+  ("home",            "Home"),
+  ("create_url_page", "Create a key"),
+  ("redirect_page",   "Redirect"),
+  ("manage_page",     "Manage key"),
+  ("login_page",      "Log in"),
+] %}
+<div class="topbar">
+  <a href="{{ url_for('home') }}" class="brand">
+    <span class="brand-mark">L</span>Latito
+    {% if show_admin_badge %}<span class="admin-badge">Admin</span>{% endif %}
+  </a>
+  <nav class="nav-links">
+    {% for route_name, label in nav_items %}
+      <a href="{{ url_for(route_name) }}"{% if active_page == route_name %} class="current"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
+  <span class="brand brand-spacer" aria-hidden="true"><span class="brand-mark">L</span>Latito</span>
+</div>

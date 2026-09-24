@@ -1,0 +1,13 @@
+/* Go to a link page (redirect.html) */
+
+.card, .demo-banner{max-width:400px}
+.card{text-align:center}
+
+.icon-badge{width:44px;height:44px;border-radius:12px;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:var(--primary)}
+.icon-badge svg{width:22px;height:22px}
+
+/* The card is centered, but fields and messages stay left-aligned */
+.field{text-align:left}
+.field input{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center}
+.msg{text-align:left}
+.msg.pending{background:rgba(79,70,229,.08);color:var(--primary);border:1px solid rgba(79,70,229,.2)}

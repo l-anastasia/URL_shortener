@@ -11,10 +11,4 @@
 .copy-btn{padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
 .copy-btn:hover{background:var(--surface-2)}
 .copy-btn svg{width:14px;height:14px}
-
-.recent{margin-top:24px}
-.recent h2{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 10px}
-.recent-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--border);font-size:13px}
-.recent-item:first-child{border-top:none}
-.recent-item .orig{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:230px}
-.recent-item .short{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--primary);font-weight:600}
+.result-label-spaced{margin-top:14px}

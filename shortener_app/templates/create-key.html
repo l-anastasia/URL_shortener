@@ -6,6 +6,7 @@
 <title>Create a key — Latito</title>
 <link rel="stylesheet" href="{{ url_for('static', path='css/base.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', path='css/create-key.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.11/dist/htmx.min.js" integrity="sha384-2OatzQy1H+Zd/IIrjr1TcuDGqLXeHhbooAyJY1KdQMKnr4LZ22k31GBLdYKHmVjg" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -14,91 +15,41 @@
 
 <div class="page">
   <div style="width:100%;max-width:480px;">
-    <div class="demo-banner">Styling preview — key creation is mocked, not yet connected to your FastAPI backend</div>
-
     <div class="card">
       <h1>Create a key</h1>
       <p class="subtitle">Paste a long URL and we'll generate a short key for it.</p>
 
-      <!--
-        FastAPI wiring (later):
-        - action="/keys" method="post" (or fetch() to a JSON endpoint) for this form
-        - field: url
-        - on success, fill #result-short-url with the key/short link returned by the
-          endpoint and add an entry to the recent-keys list from server data
-      -->
-      <form id="create-key-form" novalidate>
-        <div class="msg error" id="create-key-error">Please enter a valid URL (including https://).</div>
+      <!-- htmx: submits target_url to create_url_form and swaps the returned
+           partials/create-key-result.html into #create-key-output -->
+      <form hx-post="{{ url_for('create_url_form') }}"
+            hx-target="#create-key-output"
+            hx-swap="innerHTML"
+            hx-disabled-elt="find button">
         <div class="field">
           <label for="url-input">Long URL</label>
-          <input type="url" id="url-input" name="url" placeholder="https://example.com/a/very/long/path" required>
+          <input type="url" id="url-input" name="target_url" placeholder="https://example.com/a/very/long/path" required>
           <div class="hint">Must start with http:// or https://</div>
         </div>
         <button type="submit" class="btn btn-primary">Create key</button>
       </form>
-
-      <div class="result" id="result">
-        <p class="result-label">Your key</p>
-        <div class="result-row">
-          <input type="text" id="result-short-url" readonly value="https://lnk.ly/abc123">
-          <button class="copy-btn" id="copy-btn" type="button">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-            <span id="copy-btn-label">Copy</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="recent">
-        <h2>Recently created keys (example)</h2>
-        <div class="recent-item">
-          <span class="orig">github.com/anthropics/claude-code</span>
-          <span class="short">lnk.ly/gh42</span>
-        </div>
-        <div class="recent-item">
-          <span class="orig">docs.claude.com/en/docs/build-with-claude</span>
-          <span class="short">lnk.ly/docs9</span>
-        </div>
-      </div>
+        <div id="create-key-output"></div>   
     </div>
   </div>
 </div>
 
 <script>
-  // --- Mocked create-key flow (styling preview only — replace with a real request later) ---
-  const form = document.getElementById('create-key-form');
-  const errorMsg = document.getElementById('create-key-error');
-  const result = document.getElementById('result');
-  const resultInput = document.getElementById('result-short-url');
-
-  function looksLikeUrl(value){
-    try { const u = new URL(value); return u.protocol === 'http:' || u.protocol === 'https:'; }
-    catch { return false; }
-  }
-
-  form.addEventListener('submit', function(e){
-    e.preventDefault();
-    const value = document.getElementById('url-input').value.trim();
-    if(!looksLikeUrl(value)){
-      errorMsg.classList.add('show');
-      result.classList.remove('show');
-      return;
-    }
-    errorMsg.classList.remove('show');
-    console.log('[preview] would POST /keys with', value);
-    // Mocked key just for the visual — a real one comes from the backend.
-    const mockKey = Math.random().toString(36).slice(2, 8);
-    resultInput.value = 'https://lnk.ly/' + mockKey;
-    result.classList.add('show');
-  });
-
-  document.getElementById('copy-btn').addEventListener('click', async function(){
-    const label = document.getElementById('copy-btn-label');
+  // Copy buttons arrive later inside htmx responses, so listen on the whole
+  // document and react to any click on an element with data-copy.
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-copy]');
+    if (!btn) return;
+    const input = document.querySelector(btn.dataset.copy);
     try {
-      await navigator.clipboard.writeText(resultInput.value);
-      label.textContent = 'Copied!';
-      setTimeout(() => label.textContent = 'Copy', 1500);
+      await navigator.clipboard.writeText(input.value);
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 1500);
     } catch {
-      resultInput.select();
+      input.select();
     }
   });
 </script>

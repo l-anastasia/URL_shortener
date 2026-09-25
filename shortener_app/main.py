@@ -1,14 +1,13 @@
 from typing import Annotated
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Depends, Request, Form
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-import validators
+
 from starlette.datastructures import URL
-
-
+from pydantic import ValidationError
 
 from sqlalchemy.orm import Session
 
@@ -20,10 +19,6 @@ app = FastAPI()
 models.Base.metadata.create_all(bind=engine)
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
-
-def raise_bad_request(message):
-    raise HTTPException(status_code=400,
-                        detail=message)
 
 def raise_not_found(request):
     message = f"URL '{request.url}' doesn't exist"
@@ -67,13 +62,27 @@ def manage_page(request: Request):
 def login_page(request: Request):
     return templates.TemplateResponse(request, "login.html")
 
+# for API, Swagger etc
 @app.post("/create_url", response_model=schemas.URLInfo)
 def create_url(url: schemas.URLBase, db: DBSession):
-    if not validators.url(url.target_url):
-        raise_bad_request(message="Your provided URL is not valid")
-
     db_url = crud.create_db_url(db=db, url=url)
     return get_admin_info(db_url)
+
+@app.post("/create_url/form", response_class=HTMLResponse, name="create_url_form")
+def create_url_form(request: Request, target_url: Annotated[str, Form()], db: DBSession):
+    try:
+        url = schemas.URLBase(target_url=target_url)
+    except ValidationError as e:
+        return templates.TemplateResponse(
+            request, "partials/create-key-result.html",
+            {"error": e.errors()[0]["msg"]},
+        )
+
+    db_url = crud.create_db_url(db=db, url=url)
+    return templates.TemplateResponse(
+        request, "partials/create-key-result.html",
+        {"link": get_admin_info(db_url)},
+    )
 
 @app.get("/{url_key}")
 def forward_to_target_url(

@@ -4,100 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Latito — short links, no account required</title>
-<style>
-  :root{
-    --bg:#f4f5f9; --surface:#ffffff; --surface-2:#f9fafb; --text:#16181f; --muted:#6b7280;
-    --border:#e3e5ec; --primary:#4f46e5; --primary-hover:#4338ca; --primary-text:#ffffff;
-    --danger:#dc2626; --success:#15803d; --radius:14px; --radius-sm:8px;
-    --shadow:0 1px 2px rgba(16,17,23,.04), 0 12px 28px -8px rgba(16,17,23,.10);
-    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --bg:#0f1115; --surface:#171a21; --surface-2:#1d212a; --text:#e7e9ee; --muted:#9298a6;
-      --border:#2a2e38; --primary:#6366f1; --primary-hover:#7c7ff0; --primary-text:#ffffff;
-      --shadow:0 1px 2px rgba(0,0,0,.3), 0 12px 28px -8px rgba(0,0,0,.5);
-    }
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{margin:0;font-family:var(--font);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
-  .topbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border);background:var(--surface)}
-  .brand{font-weight:700;font-size:16px;letter-spacing:-.01em;display:flex;align-items:center;gap:8px;justify-self:start;text-decoration:none;color:var(--text)}
-  .brand-spacer{visibility:hidden;justify-self:end}
-  .brand-mark{width:22px;height:22px;border-radius:7px;background:var(--primary);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800}
-  .nav-links{display:flex;gap:32px;justify-self:center}
-  .nav-links a{color:var(--muted);text-decoration:none;font-size:16px;font-weight:600;padding:8px 4px;border-bottom:2px solid transparent}
-  .nav-links a:hover{color:var(--text)}
-  .nav-links a.current{color:var(--primary);border-bottom-color:var(--primary)}
-  @media (max-width:640px){
-    .topbar{grid-template-columns:1fr;row-gap:12px}
-    .brand{justify-self:center}
-    .brand-spacer{display:none}
-    .nav-links{justify-self:center;flex-wrap:wrap;justify-content:center;gap:20px;font-size:15px}
-  }
-
-  .hero{max-width:640px;margin:0 auto;padding:72px 24px 32px;text-align:center}
-  .hero .kicker{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--primary);background:rgba(79,70,229,.08);border:1px solid rgba(79,70,229,.2);border-radius:999px;padding:4px 12px;margin-bottom:20px}
-  .hero h1{font-size:40px;line-height:1.1;margin:0 0 14px;letter-spacing:-.02em}
-  .hero .tagline{font-size:17px;color:var(--muted);margin:0 0 32px;line-height:1.5}
-  .cta-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 22px;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;border:1px solid transparent;font-family:inherit;text-decoration:none}
-  .btn-primary{background:var(--primary);color:var(--primary-text)}
-  .btn-primary:hover{background:var(--primary-hover)}
-  .btn-secondary{background:var(--surface);color:var(--text);border-color:var(--border)}
-  .btn-secondary:hover{background:var(--surface-2)}
-
-  .demo-strip{max-width:480px;margin:28px auto 0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow);padding:12px 16px;display:flex;align-items:center;gap:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
-  .demo-strip .dot{width:8px;height:8px;border-radius:50%;background:var(--success);flex-shrink:0}
-  .demo-strip .orig{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .demo-strip .arrow{color:var(--muted);flex-shrink:0}
-  .demo-strip .short{color:var(--primary);font-weight:600;flex-shrink:0}
-
-  .features{max-width:920px;margin:64px auto;padding:0 24px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-  @media (max-width:760px){ .features{grid-template-columns:1fr} }
-  .feature{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px}
-  .feature .f-icon{width:38px;height:38px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--primary);margin-bottom:14px}
-  .feature .f-icon svg{width:19px;height:19px}
-  .feature h2{font-size:15px;margin:0 0 6px}
-  .feature p{font-size:13px;color:var(--muted);margin:0;line-height:1.5}
-
-  .how{max-width:640px;margin:0 auto 72px;padding:0 24px}
-  .how h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:center;margin:0 0 24px}
-  .steps{display:flex;flex-direction:column;gap:0}
-  .step{display:flex;gap:16px;padding:16px 0;border-top:1px solid var(--border)}
-  .step:first-child{border-top:none}
-  .step .s-num{width:26px;height:26px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-  .step .s-body h3{font-size:14px;margin:2px 0 4px}
-  .step .s-body p{font-size:13px;color:var(--muted);margin:0;line-height:1.5}
-
-  .foot-cta{text-align:center;padding:0 24px 72px}
-  .foot-cta p{color:var(--muted);font-size:13px;margin:0 0 4px}
-  .foot-cta a{color:var(--primary);text-decoration:none;font-weight:600}
-</style>
+<link rel="stylesheet" href="{{ url_for('static', path='css/base.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', path='css/home.css') }}">
 </head>
 <body>
 
-<div class="topbar">
-  <a href="index.html" class="brand"><span class="brand-mark">L</span>Latito</a>
-  <!-- Preview-only nav for reviewing the pages together. Remove once these are real templates. -->
-  <div class="nav-links">
-    <a href="index.html" class="current">Home</a>
-    <a href="create-key.html">Create a key</a>
-    <a href="redirect.html">Redirect</a>
-    <a href="manage-key.html">Manage key</a>
-    <a href="login.html">Log in</a>
-  </div>
-  <a href="index.html" class="brand brand-spacer" aria-hidden="true"><span class="brand-mark">L</span>Latito</a>
-</div>
+{% set active_page = "home" %}
+{% include "partials/topbar.html" %}
 
 <div class="hero">
   <span class="kicker">Latin for &ldquo;lies hidden&rdquo;</span>
   <h1>Short links, kept out of sight.</h1>
   <p class="tagline">Turn a long URL into a key. Share it, use it, forget it — no account needed. Only the admin key that comes with it can manage or delete it later.</p>
   <div class="cta-row">
-    <a href="create-key.html" class="btn btn-primary">Create a key</a>
-    <a href="redirect.html" class="btn btn-secondary">I have a key</a>
+    <a href="{{ url_for('create_url_page') }}" class="btn btn-primary">Create a key</a>
+    <a href="{{ url_for('redirect_page') }}" class="btn btn-secondary">I have a key</a>
   </div>
 
   <div class="demo-strip">
@@ -161,7 +82,7 @@
 
 <div class="foot-cta">
   <p>Want to keep a history of your keys tied to an account instead?</p>
-  <a href="login.html">Log in or create an account</a>
+  <a href="{{ url_for('login_page') }}">Log in or create an account</a>
   <p style="margin-top:10px">No email required — just a username and password. You can add an email later if you want it for password recovery.</p>
 </div>
 

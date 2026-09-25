@@ -53,6 +53,8 @@ body{margin:0;font-family:var(--font);background:var(--bg);color:var(--text);-we
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;font-family:inherit}
 .btn-primary{background:var(--primary);color:var(--primary-text)}
 .btn-primary:hover{background:var(--primary-hover)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary:disabled:hover{background:var(--primary)}
 
 /* Messages */
 .msg{font-size:13px;border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;display:none}

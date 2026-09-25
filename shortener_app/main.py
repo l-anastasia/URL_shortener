@@ -11,7 +11,7 @@ from pydantic import ValidationError
 
 from sqlalchemy.orm import Session
 
-from . import models, schemas, crud
+from . import models, schemas, crud, keygen
 from .database import SessionLocal, engine
 from .config import get_settings
 
@@ -82,6 +82,26 @@ def create_url_form(request: Request, target_url: Annotated[str, Form()], db: DB
     return templates.TemplateResponse(
         request, "partials/create-key-result.html",
         {"link": get_admin_info(db_url)},
+    )
+
+@app.get("/go/lookup", response_class=HTMLResponse, name="lookup_key")
+def lookup_key(request: Request, db: DBSession, key: str = ""):
+    # Read-only lookup for the redirect page: doesn't count as a click.
+    # Keys are uppercase; the input only *displays* uppercase (CSS), so normalize here.
+    key = key.strip().upper()
+    db_url = None
+    error = None
+    if not key:
+        pass  # empty field: show nothing
+    elif len(key) != keygen.KEY_LENGTH:
+        error = f"A key is exactly {keygen.KEY_LENGTH} characters long."
+    else:
+        db_url = crud.get_db_url_by_key(db=db, url_key=key)
+        if not db_url:
+            error = "No link with this key."
+    return templates.TemplateResponse(
+        request, "partials/redirect-lookup.html",
+        {"link": db_url, "error": error},
     )
 
 @app.get("/{url_key}")

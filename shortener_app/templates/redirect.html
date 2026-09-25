@@ -6,6 +6,7 @@
 <title>Go to a link — Latito</title>
 <link rel="stylesheet" href="{{ url_for('static', path='css/base.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', path='css/redirect.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.11/dist/htmx.min.js" integrity="sha384-2OatzQy1H+Zd/IIrjr1TcuDGqLXeHhbooAyJY1KdQMKnr4LZ22k31GBLdYKHmVjg" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -14,8 +15,6 @@
 
 <div class="page">
   <div style="width:100%;max-width:400px;">
-    <div class="demo-banner">Styling preview — lookup is mocked, not yet connected to your FastAPI backend</div>
-
     <div class="card">
       <div class="icon-badge">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -23,41 +22,61 @@
       <h1>Go to a link</h1>
       <p class="subtitle">Enter a short key to jump to its destination.</p>
 
-      <!--
-        FastAPI wiring (later):
-        In most FastAPI URL-shorteners the redirect happens directly at a GET route
-        like @app.get("/{key}") which issues a RedirectResponse — no page needed for
-        that. This form is for a manual "type a key and go" flow (e.g. a lookup box).
-        Options once connected:
-          - fetch(`/api/${key}`) to resolve the destination, then window.location = dest
-          - or just navigate the browser straight to `/${key}` and let FastAPI redirect
-      -->
-      <form id="key-form" novalidate>
-        <div class="msg error" id="key-error">That key wasn't found.</div>
-        <div class="msg pending" id="key-pending">Redirecting to the destination… (preview only)</div>
+      <!-- htmx: while typing, the key is sent to lookup_key. The response
+           (partials/redirect-lookup.html) fills #lookup-result below the field and,
+           out-of-band, replaces #key-status next to the field. Go stays disabled
+           until a lookup finds the key. -->
+      <form id="key-form">
         <div class="field">
           <label for="key-input">Short key</label>
-          <input type="text" id="key-input" name="key" placeholder="e.g. abc123" autocomplete="off" required>
+          <div class="key-input-wrap" id="key-input-wrap">
+            <input type="text" id="key-input" name="key" placeholder="e.g. AB3XY" autocomplete="off" required
+                   hx-get="{{ url_for('lookup_key') }}"
+                   hx-trigger="input changed delay:1s"
+                   hx-target="#lookup-result"
+                   hx-indicator="#key-input-wrap"
+                   hx-sync="this:replace">
+            <span class="key-indicator">
+              <span class="key-spinner" aria-hidden="true"></span>
+              <span id="key-status" class="key-status"></span>
+            </span>
+          </div>
+          <div id="lookup-result" aria-live="polite"></div>
         </div>
-        <button type="submit" class="btn btn-primary">Go</button>
+        <button type="submit" class="btn btn-primary" id="go-btn" disabled>Go</button>
       </form>
     </div>
   </div>
 </div>
 
 <script>
-  // --- Mocked lookup flow (styling preview only — replace with a real request/redirect later) ---
-  document.getElementById('key-form').addEventListener('submit', function(e){
+  const keyInput = document.getElementById('key-input');
+  const goBtn = document.getElementById('go-btn');
+
+  // #key-status is replaced on every lookup, so always look it up fresh
+  // instead of keeping a reference.
+  const foundLink = () => document.getElementById('key-status').dataset.go;
+
+  // Clear the old result and disable Go as soon as the key changes, so the
+  // previous key's check mark can't be used before the new lookup finishes.
+  keyInput.addEventListener('input', () => {
+    const status = document.getElementById('key-status');
+    status.className = 'key-status';
+    status.innerHTML = '';
+    delete status.dataset.go;
+    document.getElementById('lookup-result').innerHTML = '';
+    goBtn.disabled = true;
+  });
+
+  // After htmx has swapped in a lookup result, enable Go only if the key was found.
+  document.body.addEventListener('htmx:afterSettle', () => {
+    goBtn.disabled = !foundLink();
+  });
+
+  document.getElementById('key-form').addEventListener('submit', (e) => {
     e.preventDefault();
-    const key = document.getElementById('key-input').value.trim();
-    const errorMsg = document.getElementById('key-error');
-    const pendingMsg = document.getElementById('key-pending');
-    errorMsg.classList.remove('show');
-    pendingMsg.classList.remove('show');
-    if(!key){ errorMsg.classList.add('show'); return; }
-    console.log('[preview] would look up key:', key);
-    pendingMsg.classList.add('show');
-    // In the real app this becomes: window.location.href = `/${key}`;
+    const go = foundLink();
+    if (go) window.location.href = go;
   });
 </script>
 

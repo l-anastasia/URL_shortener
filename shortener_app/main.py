@@ -116,21 +116,58 @@ def forward_to_target_url(
     else:
        raise_not_found(request)
 
+# for API, Swagger etc
 @app.get(
-        "/admin/{secret_key}", 
+        "/manage_key/{secret_key}", 
         name="admin_info", 
         response_model=schemas.URLInfo,
 )
-def get_url_info(secret_key: str, request: Request, db: DBSession):
+def manage_key(secret_key: str, request: Request, db: DBSession):
     if db_url := crud.get_db_url_by_secret_key(db, secret_key=secret_key):
         return get_admin_info(db_url)
     else:
         raise_not_found(request)
 
-@app.delete("/admin/{secret_key}")
+@app.post("/manage_key/form",
+         response_class=HTMLResponse,
+         name="manage_key_form")
+def manage_key_form(secret_key: Annotated[str, Form()],
+                    request: Request,
+                    db: DBSession):
+    secret_key = secret_key.strip().upper()
+    db_url_info = None
+    error = None
+    if db_url := crud.get_db_url_by_secret_key(db, secret_key=secret_key):
+        db_url_info = get_admin_info(db_url)
+    else:
+        error = "There is no link with this admin key"
+    return templates.TemplateResponse(
+        request, "partials/manage-key-result.html",
+        {"link": db_url_info, "error": error},
+    )
+
+@app.delete("/manage_key_delete/{secret_key}")
 def delete_url(secret_key: str, request: Request, db: DBSession):
     if db_url := crud.deactivate_db_url(db, secret_key=secret_key):
         message = f"Successfully deleted shortened URL for '{db_url.target_url}'"
         return {"detail": message}
     else:
         raise_not_found(request)
+
+@app.delete("/manage_key/form",
+            response_class=HTMLResponse,
+            name="manage_key_delete")
+def manage_key_delete(secret_key: Annotated[str, Form()],
+                      request: Request,
+                      db: DBSession):
+    error = None
+    secret_key = secret_key.strip().upper()
+    db_url = crud.deactivate_db_url(db, secret_key=secret_key)
+    if not db_url:
+        error = "There is no link with this admin key"
+    return templates.TemplateResponse(
+        request, "partials/manage-key-result.html",
+        # The form was hidden when the details were shown, so an error here
+        # needs a link back to it.
+        {"deleted": db_url, "error": error, "back_link": True},
+    )

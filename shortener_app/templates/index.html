@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Latito — short links, no account required</title>
+<title>Revelio — short links, no account required</title>
 <link rel="stylesheet" href="{{ url_for('static', path='css/base.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', path='css/home.css') }}">
 </head>
@@ -13,8 +13,8 @@
 {% include "partials/topbar.html" %}
 
 <div class="hero">
-  <span class="kicker">Latin for &ldquo;lies hidden&rdquo;</span>
-  <h1>Short links, kept out of sight.</h1>
+  <span class="kicker">From Latin <em>revelare</em>, &ldquo;to reveal&rdquo;</span>
+  <h1>Hidden links, revealed with a key.</h1>
   <p class="tagline">Turn a long URL into a key. Share it, use it, forget it — no account needed. Only the admin key that comes with it can manage or delete it later.</p>
   <div class="cta-row">
     <a href="{{ url_for('create_url_page') }}" class="btn btn-primary">Create a key</a>
@@ -25,7 +25,8 @@
     <span class="dot"></span>
     <span class="orig">https://example.com/a/very/long/path</span>
     <span class="arrow">→</span>
-    <span class="short">lnk.ly/gh42</span>
+    {# Example key in the real format (5 uppercase letters/digits) on this app's own host. #}
+    <span class="short">{{ request.url.netloc }}/AB3XY</span>
   </div>
 </div>
 

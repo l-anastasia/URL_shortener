@@ -1,0 +1,82 @@
+{#
+  Details of one short link for the manage page.
+  Context:
+    link      - the URL record passed through get_admin_info() (so link.url is set), or None
+    error     - message to show instead, e.g. when the admin key doesn't match any link
+    deleted   - the URL record that was just deleted
+    back_link - true when the admin-key form is already hidden, so the error needs
+                its own way back to an empty form
+#}
+{% if error %}
+  <div class="msg error show">{{ error }}</div>
+  {% if back_link %}
+    <a href="{{ url_for('manage_page') }}" class="link-btn back-link">Manage a different key</a>
+  {% endif %}
+{% elif deleted %}
+  <div class="deleted-state">
+    <h1>Key deleted</h1>
+    <p class="subtitle">{{ deleted.key }} no longer redirects to {{ deleted.target_url }}.</p>
+    <a href="{{ url_for('manage_page') }}" class="btn btn-secondary">Manage a different key</a>
+  </div>
+{% elif link %}
+  {# Out-of-band: replace the admin-key form with an empty element, i.e. hide it. #}
+  <div id="gate-panel" hx-swap-oob="true"></div>
+
+  <div class="details-head">
+    <h1>Manage key</h1>
+    <a href="{{ url_for('manage_page') }}" class="link-btn">Manage a different key</a>
+  </div>
+  <p class="short-link">{{ link.url }}</p>
+
+  <div class="detail-list">
+    {% if link.created_at %}
+    <div class="detail-row">
+      <span class="d-label">Created</span>
+      <span class="d-value">{{ link.created_at.strftime('%b %d, %Y, %H:%M') }}</span>
+    </div>
+    {% endif %}
+    <div class="detail-row">
+      <span class="d-label">Target URL</span>
+      <span class="d-value trunc" title="{{ link.target_url }}">{{ link.target_url }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="d-label">Key</span>
+      <span class="d-value mono">{{ link.key }}</span>
+    </div>
+    <div class="detail-row">
+      <span class="d-label">Admin key</span>
+      <div class="secret-row">
+        {# Masked by default; the page's script swaps in data-value on "Show". #}
+        <span class="secret-value" data-value="{{ link.secret_key }}">••••••••••</span>
+        <button type="button" class="link-btn" data-toggle-secret>Show</button>
+      </div>
+    </div>
+    <div class="detail-row">
+      <span class="d-label">Clicks</span>
+      <span class="d-value mono">{{ link.clicks }}</span>
+    </div>
+  </div>
+
+  {# "Delete this key" only opens the confirm box (page script toggles .confirming);
+     the actual htmx DELETE is on "Yes, delete". #}
+  <div class="danger-zone">
+    <h2>Danger zone</h2>
+    <button type="button" class="btn btn-danger" data-confirm-open>Delete this key</button>
+    <div class="confirm-box" role="alertdialog" aria-labelledby="delete-confirm-text">
+      <p id="delete-confirm-text">
+        Delete <strong>{{ link.key }}</strong> permanently? The short link will stop working. This can't be undone.
+      </p>
+      <div class="btn-row">
+        <button type="button" class="btn btn-secondary btn-sm" data-confirm-cancel>Cancel</button>
+        <button type="button" class="btn btn-danger btn-sm"
+                hx-delete="{{ url_for('manage_key_delete') }}"
+                hx-vals='{{ {"secret_key": link.secret_key} | tojson }}'
+                hx-target="#manage-output"
+                hx-swap="innerHTML"
+                hx-disabled-elt="this, previous [data-confirm-cancel]">
+          Yes, delete
+        </button>
+      </div>
+    </div>
+  </div>
+{% endif %}

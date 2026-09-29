@@ -3,9 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Manage a key — Latito</title>
+<meta name="htmx-config" content='{"methodsThatUseUrlParams":["get"]}'>
+<title>Manage a key — Revelio</title>
 <link rel="stylesheet" href="{{ url_for('static', path='css/base.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', path='css/manage-key.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.11/dist/htmx.min.js" integrity="sha384-2OatzQy1H+Zd/IIrjr1TcuDGqLXeHhbooAyJY1KdQMKnr4LZ22k31GBLdYKHmVjg" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -15,190 +17,62 @@
 
 <div class="page">
   <div style="width:100%;max-width:480px;">
-    <div class="demo-banner">Styling preview — lookup/delete is mocked, not yet connected to your FastAPI backend</div>
-
     <div class="card">
-
-      <!--
-        FastAPI wiring (later):
-        The admin_key IS the access credential for this page — it both identifies which
-        key record to show and authorizes viewing/deleting it. Don't accept a separate
-        "which key" selector from the client.
-          - GET /keys/by-admin-key/{admin_key}  -> { key, target_url, created_at, clicks, admin_key }
-          - Return 404/401 (same response either way, to avoid leaking which keys exist)
-            when the admin_key doesn't match any record.
-      -->
-      <div class="panel active" id="gate-panel">
+      <!-- htmx: the admin key is posted to manage_key_form. The response
+           (partials/manage-key-result.html) fills #manage-output; on success it
+           also replaces #gate-panel out-of-band, which hides the form. -->
+      <div id="gate-panel">
         <h1>Manage a key</h1>
         <p class="subtitle">Enter the admin key for the link you want to manage.</p>
-        <form id="gate-form" novalidate>
-          <div class="msg error" id="gate-error">Enter an admin key.</div>
+        <form hx-post="{{ url_for('manage_key_form') }}"
+              hx-target="#manage-output"
+              hx-swap="innerHTML"
+              hx-disabled-elt="find button">
           <div class="field">
             <label for="admin-key-input">Admin key</label>
-            <input type="text" id="admin-key-input" name="admin_key" placeholder="e.g. admin-8f2c" autocomplete="off">
+            <input type="text" id="admin-key-input" name="secret_key"
+                   placeholder="e.g. AB3XY_K7Q2M9PL" autocomplete="off" required>
           </div>
           <button type="submit" class="btn btn-primary">Unlock</button>
         </form>
       </div>
 
-      <div class="panel" id="details-panel">
-        <div class="details-head">
-          <h1>Manage key</h1>
-          <button type="button" class="link-btn" id="manage-other-top">Manage a different key</button>
-        </div>
-        <p class="short-link" id="detail-short-link">lnk.ly/gh42</p>
-
-        <div class="msg success" id="delete-success">This key has been deleted.</div>
-
-        <div id="info-block">
-          <div class="detail-list">
-            <div class="detail-row">
-              <span class="d-label">Created</span>
-              <span class="d-value" id="detail-created">Sep 18, 2026, 14:32</span>
-            </div>
-            <div class="detail-row">
-              <span class="d-label">Target URL</span>
-              <span class="d-value trunc" id="detail-target" title="https://github.com/anthropics/claude-code">https://github.com/anthropics/claude-code</span>
-            </div>
-            <div class="detail-row">
-              <span class="d-label">Key</span>
-              <span class="d-value mono" id="detail-key">gh42</span>
-            </div>
-            <div class="detail-row">
-              <span class="d-label">Admin key</span>
-              <div class="secret-row">
-                <span class="secret-value" id="admin-key-value">••••••••••</span>
-                <button type="button" class="link-btn" id="toggle-admin-key">Show</button>
-              </div>
-            </div>
-            <div class="detail-row">
-              <span class="d-label">Clicks</span>
-              <!-- read-only stat: view count, never edited from this page -->
-              <input class="clicks-input" id="detail-clicks" type="number" value="128" readonly aria-label="Number of clicks (read only)">
-            </div>
-          </div>
-
-          <!--
-            FastAPI wiring (later):
-            DELETE /keys/by-admin-key/{admin_key}  (or POST to a delete endpoint guarded
-            the same way as the lookup above) — on success, drop the record and show the
-            deleted state below.
-          -->
-          <div class="danger-zone">
-            <h2>Danger zone</h2>
-            <button type="button" class="btn btn-danger" id="delete-key-btn">Delete this key</button>
-            <div class="confirm-box" id="delete-confirm">
-              <p>Delete <strong id="confirm-key-name">this key</strong> permanently? This can't be undone.</p>
-              <div class="btn-row">
-                <button type="button" class="btn btn-secondary btn-sm" id="cancel-delete">Cancel</button>
-                <button type="button" class="btn btn-danger btn-sm" id="confirm-delete">Yes, delete</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="deleted-state" id="deleted-state" style="display:none">
-          <div class="icon-badge">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
-          </div>
-          <p class="subtitle" style="margin-bottom:20px">This key no longer exists.</p>
-          <button type="button" class="btn btn-secondary" id="manage-other-bottom">Manage a different key</button>
-        </div>
-      </div>
-
+      <div id="manage-output"></div>
     </div>
   </div>
 </div>
 
 <script>
-  const gatePanel = document.getElementById('gate-panel');
-  const detailsPanel = document.getElementById('details-panel');
-  const gateForm = document.getElementById('gate-form');
-  const gateError = document.getElementById('gate-error');
-  const adminKeyInput = document.getElementById('admin-key-input');
-
-  const infoBlock = document.getElementById('info-block');
-  const deletedState = document.getElementById('deleted-state');
-  const deleteSuccess = document.getElementById('delete-success');
-
-  // Demo record shown for any non-empty admin key (styling preview only —
-  // the real page looks this up server-side by the admin_key itself).
-  const demoRecord = {
-    shortLink: 'lnk.ly/gh42',
-    created: 'Sep 18, 2026, 14:32',
-    target: 'https://github.com/anthropics/claude-code',
-    key: 'gh42',
-    clicks: 128
-  };
-
-  function showDetails(adminKey){
-    document.getElementById('detail-short-link').textContent = demoRecord.shortLink;
-    document.getElementById('detail-created').textContent = demoRecord.created;
-    const targetEl = document.getElementById('detail-target');
-    targetEl.textContent = demoRecord.target;
-    targetEl.title = demoRecord.target;
-    document.getElementById('detail-key').textContent = demoRecord.key;
-    document.getElementById('detail-clicks').value = demoRecord.clicks;
-    document.getElementById('confirm-key-name').textContent = demoRecord.shortLink;
-
-    document.getElementById('admin-key-value').dataset.value = adminKey;
-    document.getElementById('admin-key-value').textContent = '•'.repeat(Math.max(adminKey.length, 8));
-    document.getElementById('toggle-admin-key').textContent = 'Show';
-
-    infoBlock.style.display = '';
-    deletedState.style.display = 'none';
-    deleteSuccess.classList.remove('show');
-    document.getElementById('delete-confirm').classList.remove('show');
-
-    gatePanel.classList.remove('active');
-    detailsPanel.classList.add('active');
-  }
-
-  function backToGate(){
-    detailsPanel.classList.remove('active');
-    gatePanel.classList.add('active');
-    adminKeyInput.value = '';
-    gateError.classList.remove('show');
-  }
-
-  gateForm.addEventListener('submit', function(e){
-    e.preventDefault();
-    const value = adminKeyInput.value.trim();
-    if(!value){
-      gateError.classList.add('show');
-      return;
-    }
-    gateError.classList.remove('show');
-    console.log('[preview] would GET /keys/by-admin-key/' + value);
-    showDetails(value);
+  // Show/Hide for the admin key. The button arrives inside an htmx response,
+  // so listen on the whole document (same pattern as the copy buttons).
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-toggle-secret]');
+    if (!btn) return;
+    const value = btn.parentElement.querySelector('.secret-value');
+    const hidden = btn.textContent === 'Show';
+    value.textContent = hidden ? value.dataset.value : '••••••••••';
+    btn.textContent = hidden ? 'Hide' : 'Show';
   });
 
-  document.getElementById('manage-other-top').addEventListener('click', backToGate);
-  document.getElementById('manage-other-bottom').addEventListener('click', backToGate);
-
-  document.getElementById('toggle-admin-key').addEventListener('click', function(){
-    const span = document.getElementById('admin-key-value');
-    const real = span.dataset.value || '';
-    const isMasked = span.textContent.indexOf('•') !== -1;
-    if(isMasked){
-      span.textContent = real;
-      this.textContent = 'Hide';
-    } else {
-      span.textContent = '•'.repeat(Math.max(real.length, 8));
-      this.textContent = 'Show';
-    }
+  // Delete confirmation. "Delete this key" opens the inline confirm box, "Cancel"
+  // closes it; the DELETE request itself is sent by htmx from "Yes, delete".
+  document.addEventListener('click', (e) => {
+    const open = e.target.closest('[data-confirm-open]');
+    const cancel = e.target.closest('[data-confirm-cancel]');
+    if (!open && !cancel) return;
+    const zone = e.target.closest('.danger-zone');
+    zone.classList.toggle('confirming', !!open);
+    // Move focus to the safe choice when opening, and back when cancelling.
+    zone.querySelector(open ? '[data-confirm-cancel]' : '[data-confirm-open]').focus();
   });
 
-  // --- Delete flow (styling preview only) ---
-  const deleteBtn = document.getElementById('delete-key-btn');
-  const deleteConfirm = document.getElementById('delete-confirm');
-  deleteBtn.addEventListener('click', () => deleteConfirm.classList.add('show'));
-  document.getElementById('cancel-delete').addEventListener('click', () => deleteConfirm.classList.remove('show'));
-  document.getElementById('confirm-delete').addEventListener('click', function(){
-    console.log('[preview] would DELETE /keys/by-admin-key/' + adminKeyInput.value.trim());
-    deleteConfirm.classList.remove('show');
-    infoBlock.style.display = 'none';
-    deletedState.style.display = 'block';
+  // Escape closes an open confirm box, like a dialog.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const zone = document.querySelector('.danger-zone.confirming');
+    if (!zone) return;
+    zone.classList.remove('confirming');
+    zone.querySelector('[data-confirm-open]').focus();
   });
 </script>
 

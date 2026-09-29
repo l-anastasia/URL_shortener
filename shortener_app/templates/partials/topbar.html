@@ -14,7 +14,7 @@
 ] %}
 <div class="topbar">
   <a href="{{ url_for('home') }}" class="brand">
-    <span class="brand-mark">L</span>Latito
+    <span class="brand-mark">R</span>Revelio
     {% if show_admin_badge %}<span class="admin-badge">Admin</span>{% endif %}
   </a>
   <nav class="nav-links">
@@ -22,5 +22,5 @@
       <a href="{{ url_for(route_name) }}"{% if active_page == route_name %} class="current"{% endif %}>{{ label }}</a>
     {% endfor %}
   </nav>
-  <span class="brand brand-spacer" aria-hidden="true"><span class="brand-mark">L</span>Latito</span>
+  <span class="brand brand-spacer" aria-hidden="true"><span class="brand-mark">R</span>Revelio</span>
 </div>

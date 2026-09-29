@@ -1,0 +1,54 @@
+/* Manage a key page (manage-key.html + partials/manage-key-result.html) */
+
+.card, .demo-banner{max-width:480px}
+.admin-badge{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--danger);background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.25);border-radius:999px;padding:2px 8px;margin-left:2px}
+
+/* Admin key input: shown uppercase (the server uppercases the real value too) */
+.field input{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+#admin-key-input{text-transform:uppercase}
+#admin-key-input::placeholder{text-transform:none}
+
+/* Error from the server appears under the Unlock button */
+#manage-output .msg{margin:14px 0 0}
+
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{background:var(--danger-hover)}
+.btn-danger:disabled:hover{background:var(--danger)}
+.btn-secondary{background:var(--surface-2);color:var(--text);border-color:var(--border);text-decoration:none}
+.btn-secondary:hover{background:var(--border)}
+.link-btn{background:none;border:0;color:var(--primary);font-size:13px;font-weight:600;cursor:pointer;padding:0;font-family:inherit;text-decoration:none}
+.link-btn:hover{color:var(--primary-hover)}
+
+.details-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px}
+.details-head h1{margin:0}
+.short-link{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--primary);font-weight:700;font-size:15px;margin:0 0 18px}
+
+.detail-list{margin:4px 0 22px}
+.detail-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:11px 0;border-top:1px solid var(--border)}
+.detail-row:first-child{border-top:none}
+.detail-row .d-label{font-size:12px;font-weight:600;color:var(--muted);flex-shrink:0;padding-top:3px}
+.detail-row .d-value{font-size:13px;color:var(--text);text-align:right;word-break:break-word}
+.detail-row .d-value.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.detail-row .d-value.trunc{max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom}
+
+.secret-row{display:flex;align-items:center;gap:10px}
+.secret-value{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:var(--text);letter-spacing:.03em}
+
+.danger-zone{margin-top:24px;padding-top:18px;border-top:1px solid var(--border)}
+.danger-zone h2{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 10px}
+
+/* Inline delete confirmation: hidden until the page script adds .confirming to
+   the danger zone, which also hides the "Delete this key" button. */
+.confirm-box{display:none;padding:14px;border-radius:var(--radius-sm);background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.25)}
+.confirm-box p{margin:0 0 12px;font-size:13px;color:var(--text);line-height:1.5}
+.danger-zone.confirming .confirm-box{display:block}
+.danger-zone.confirming [data-confirm-open]{display:none}
+.btn-row{display:flex;gap:8px;justify-content:flex-end}
+.btn-sm{width:auto;padding:8px 14px;font-size:13px}
+
+/* Shown after a key is deleted */
+.deleted-state{text-align:center}
+.deleted-state .subtitle{word-break:break-word}
+
+/* Link back to an empty form, under an error when the form is already hidden */
+.back-link{display:inline-block;margin-top:12px}

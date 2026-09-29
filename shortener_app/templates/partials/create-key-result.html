@@ -1,0 +1,25 @@
+{% if error %}
+  <div class="msg error show">{{ error }}</div>
+{% else %}
+  <div class="result show">
+    <p class="result-label">Your short link</p>
+    <div class="result-row">
+      <input type="text" id="short-url" readonly value="{{ link.url }}">
+      <button type="button" class="copy-btn" data-copy="#short-url">Copy</button>
+    </div>
+
+    <p class="result-label result-label-spaced">Key</p>
+    <div class="result-row">
+      <input type="text" id="short-key" readonly value="{{ link.key }}">
+      <button type="button" class="copy-btn" data-copy="#short-key">Copy</button>
+    </div>
+
+    <p class="result-label result-label-spaced">
+      Admin key: keep it private. It's the only way to manage or delete this link.
+    </p>
+    <div class="result-row">
+      <input type="text" id="admin-key" readonly value="{{ link.secret_key }}">
+      <button type="button" class="copy-btn" data-copy="#admin-key">Copy</button>
+    </div>
+  </div>
+{% endif %}

@@ -1,0 +1,21 @@
+{# Swapped into #lookup-result, below the key field. #}
+{% if link %}
+  <div class="lookup-target">
+    <span class="lookup-label">Goes to</span>
+    <span class="lookup-url" title="{{ link.target_url }}">{{ link.target_url }}</span>
+  </div>
+{% elif error %}
+  <div class="lookup-missing">{{ error }}</div>
+{% endif %}
+
+{# Out-of-band swap: also replaces the status icon next to the field.
+   data-go holds the short link the Go button navigates to. #}
+<span id="key-status" hx-swap-oob="true"
+      class="key-status{% if link %} found{% elif error %} missing{% endif %}"
+      {% if link %}data-go="{{ url_for('forward_to_target_url', url_key=link.key) }}" role="img" aria-label="Key found"{% elif error %}role="img" aria-label="Key not valid"{% endif %}>
+  {% if link %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+  {% elif error %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+  {% endif %}
+</span>

@@ -1,0 +1,35 @@
+/* Go to a link page (redirect.html) */
+
+.card, .demo-banner{max-width:400px}
+.card{text-align:center}
+
+.icon-badge{width:44px;height:44px;border-radius:12px;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:var(--primary)}
+.icon-badge svg{width:22px;height:22px}
+
+/* The card is centered, but fields stay left-aligned */
+.field{text-align:left}
+.field input{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center}
+
+/* Key field with a status icon next to it, on the right. The spinner and the
+   status icon share one fixed-size slot, so the field never changes width. */
+.key-input-wrap{display:flex;align-items:center;gap:10px}
+.key-input-wrap input{flex:1;min-width:0;text-transform:uppercase}
+.key-input-wrap input::placeholder{text-transform:none}
+.key-indicator{position:relative;flex-shrink:0;width:20px;height:20px}
+.key-spinner, .key-status{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.key-status svg{width:20px;height:20px}
+.key-status.found{color:var(--success)}
+.key-status.missing{color:var(--danger)}
+
+/* Grey spinner: hidden until htmx adds .htmx-request to the wrapper (hx-indicator),
+   and the status icon hides while the request runs. */
+.key-spinner{display:none;border:2px solid var(--border);border-top-color:var(--muted);border-radius:50%;animation:key-spin .7s linear infinite}
+.key-input-wrap.htmx-request .key-spinner{display:block}
+.key-input-wrap.htmx-request .key-status{display:none}
+@keyframes key-spin{to{transform:rotate(360deg)}}
+
+/* Lookup result below the field */
+.lookup-target{display:flex;gap:6px;margin-top:8px;font-size:13px;min-width:0}
+.lookup-label{color:var(--muted);flex-shrink:0}
+.lookup-url{color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lookup-missing{margin-top:8px;font-size:13px;color:var(--danger)}

@@ -1,3 +1,6 @@
+from datetime import datetime
+
+from sqlalchemy import func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
@@ -11,6 +14,7 @@ class URL(Base):
     target_url: Mapped[str] = mapped_column(index=True)
     is_active: Mapped[bool] = mapped_column(default=True)
     clicks: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     def __repr__(self):
         return f"<URL key={self.key!r} target_url={self.target_url!r}>"

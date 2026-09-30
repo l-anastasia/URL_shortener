@@ -146,6 +146,7 @@ def manage_key_form(secret_key: Annotated[str, Form()],
         {"link": db_url_info, "error": error},
     )
 
+# for API, Swagger etc
 @app.delete("/manage_key_delete/{secret_key}")
 def delete_url(secret_key: str, request: Request, db: DBSession):
     if db_url := crud.deactivate_db_url(db, secret_key=secret_key):

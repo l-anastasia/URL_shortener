@@ -32,7 +32,9 @@
     {% if link.created_at %}
     <div class="detail-row">
       <span class="d-label">Created</span>
-      <span class="d-value">{{ link.created_at.strftime('%b %d, %Y, %H:%M') }}</span>
+      <time class="d-value" data-local datetime="{{ link.created_at.isoformat() }}Z">
+        {{ link.created_at.strftime('%b %d, %Y, %H:%M') }} UTC
+      </time>
     </div>
     {% endif %}
     <div class="detail-row">

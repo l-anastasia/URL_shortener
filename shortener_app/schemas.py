@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic_core import PydanticCustomError
+from datetime import datetime
 
 import validators
 
@@ -17,6 +18,7 @@ class URLBase(BaseModel):
 class URL(URLBase):
     is_active: bool
     clicks: int
+    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 

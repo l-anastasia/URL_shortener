@@ -74,6 +74,19 @@
     zone.classList.remove('confirming');
     zone.querySelector('[data-confirm-open]').focus();
   });
+
+  // Show server dates (UTC) in the visitor's local time. htmx.onLoad runs for the
+  // initial page and again for every piece of HTML htmx swaps in later.
+  htmx.onLoad((root) => {
+    root.querySelectorAll('time[data-local]').forEach((el) => {
+      const date = new Date(el.dateTime);
+      el.textContent = date.toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+      el.title = date.toString();   // full date with time zone on hover
+    });
+  });
 </script>
 
 </body>

@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from . import keygen, models, schemas
+from . import keygen, models, schemas, security
 
 def create_db_url(db: Session, url: schemas.URLBase) -> models.URL:
     key = keygen.create_unique_random_key(db)
@@ -40,3 +40,20 @@ def deactivate_db_url(db: Session, secret_key: str) -> models.URL:
         db.commit()
         db.refresh(db_url)
     return db_url
+
+def get_user_by_username(db: Session, username: str) -> models.User | None:
+    return db.query(models.User).filter(models.User.username == username).first()
+
+def create_user(db: Session, user: schemas.UserCreate) -> models.User:
+    db_user = models.User(
+        username=user.username,
+        email=user.email,
+        password_hash=security.hash_password(user.password.get_secret_value()),
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def get_user_by_email(db: Session, email: str) -> models.User | None:
+    return db.query(models.User).filter(models.User.email == email).first()

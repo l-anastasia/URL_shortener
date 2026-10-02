@@ -6,16 +6,16 @@
 <title>Log in — Revelio</title>
 <link rel="stylesheet" href="{{ url_for('static', path='css/base.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', path='css/login.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.11/dist/htmx.min.js" integrity="sha384-2OatzQy1H+Zd/IIrjr1TcuDGqLXeHhbooAyJY1KdQMKnr4LZ22k31GBLdYKHmVjg" crossorigin="anonymous"></script>
 </head>
 <body>
 
-{% set active_page = "login_page" %}
+{# Shown by GET /account when nobody is logged in. #}
+{% set active_page = "account_page" %}
 {% include "partials/topbar.html" %}
 
 <div class="page">
   <div style="width:100%;max-width:400px;">
-    <div class="demo-banner">Styling preview — not yet connected to your FastAPI backend</div>
-
     <div class="card">
       <h1>Welcome</h1>
       <p class="subtitle" id="subtitle">Log in to your account</p>
@@ -25,14 +25,14 @@
         <button class="tab" id="tab-signup" data-tab="signup">Create account</button>
       </div>
 
-      <!--
-        FastAPI wiring (later):
-        - action="/login" method="post" for this form
-        - fields: username, password
-        - show .msg.error using the message the endpoint returns on bad credentials
-      -->
-      <form class="tab-panel active" data-panel="login" id="login-form" novalidate>
-        <div class="msg error" id="login-error">Invalid username or password.</div>
+      <!-- htmx: on success the endpoint answers with HX-Redirect to /account (now
+           logged in); on failure it returns partials/form-error.html into the
+           form's error slot. -->
+      <form class="tab-panel active" data-panel="login"
+            hx-post="{{ url_for('login') }}"
+            hx-target="#login-error"
+            hx-disabled-elt="find button">
+        <div id="login-error"></div>
         <div class="field">
           <label for="login-username">Username</label>
           <input type="text" id="login-username" name="username" autocomplete="username" required>
@@ -44,16 +44,19 @@
         <button type="submit" class="btn btn-primary">Log in</button>
       </form>
 
-      <!--
-        FastAPI wiring (later):
-        - action="/register" method="post" for this form
-        - fields: username, password, confirm_password (validate match server-side too)
-      -->
-      <form class="tab-panel" data-panel="signup" id="signup-form" novalidate>
-        <div class="msg error" id="signup-error">Passwords don't match.</div>
+      <form class="tab-panel" data-panel="signup"
+            hx-post="{{ url_for('sign_up') }}"
+            hx-target="#signup-error"
+            hx-disabled-elt="find button">
+        <div id="signup-error"></div>
         <div class="field">
           <label for="signup-username">Username</label>
           <input type="text" id="signup-username" name="username" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="signup-email">Email <span class="optional">(optional)</span></label>
+          <input type="email" id="signup-email" name="email" autocomplete="email">
+          <div class="hint">Only used to recover your password.</div>
         </div>
         <div class="field">
           <label for="signup-password">Password</label>
@@ -95,25 +98,6 @@
   }
   tabs.forEach(t => t.addEventListener('click', () => setMode(t.dataset.tab)));
   document.getElementById('switch-to-signup').addEventListener('click', e => { e.preventDefault(); setMode('signup'); });
-
-  // --- Mocked submit handling (styling preview only — replace with real requests later) ---
-  document.getElementById('login-form').addEventListener('submit', function(e){
-    e.preventDefault();
-    document.getElementById('login-error').classList.remove('show');
-    console.log('[preview] would POST /login with', new FormData(this));
-  });
-  document.getElementById('signup-form').addEventListener('submit', function(e){
-    e.preventDefault();
-    const pw = document.getElementById('signup-password').value;
-    const confirm = document.getElementById('signup-confirm').value;
-    const err = document.getElementById('signup-error');
-    if(pw !== confirm){
-      err.classList.add('show');
-      return;
-    }
-    err.classList.remove('show');
-    console.log('[preview] would POST /register with', new FormData(this));
-  });
 </script>
 
 </body>

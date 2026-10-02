@@ -1,46 +1,36 @@
 from typing import Annotated
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Depends, Request, Form
+from fastapi import FastAPI, Request, Form
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
-from starlette.datastructures import URL
+from starlette.middleware.sessions import SessionMiddleware
 from pydantic import ValidationError
 
-from sqlalchemy.orm import Session
-
-from . import models, schemas, crud, keygen
-from .database import SessionLocal, engine
+from . import models, schemas, crud, keygen, security
+from .database import engine
 from .config import get_settings
+
+from .helpers import (
+    DBSession, CurrentUser,
+    raise_not_found, get_admin_info, log_in, validation_error,
+)
 
 app = FastAPI()
 models.Base.metadata.create_all(bind=engine)
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
-def raise_not_found(request):
-    message = f"URL '{request.url}' doesn't exist"
-    raise HTTPException(status_code=404, detail=message)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=get_settings().secret_key,
+    same_site="lax",
+    https_only=False,
+    max_age=7 * 24 * 3600
+)
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-def get_admin_info(db_url: models.URL) -> schemas.URLInfo:
-    base_url = URL(get_settings().base_url)
-    admin_endpoint = app.url_path_for(
-        "admin_info", secret_key=db_url.secret_key
-    )
-    db_url.url = str(base_url.replace(path=db_url.key))
-    db_url.admin_url = str(base_url.replace(path=admin_endpoint))
-    return db_url
-
-DBSession = Annotated[Session, Depends(get_db)]
 
 @app.get("/", response_class=HTMLResponse, name="home")
 def read_root(request: Request):
@@ -58,15 +48,17 @@ def redirect_page(request: Request):
 def manage_page(request: Request):
     return templates.TemplateResponse(request, "manage-key.html")
 
-@app.get("/login", response_class=HTMLResponse, name="login_page")
-def login_page(request: Request):
-    return templates.TemplateResponse(request, "login.html")
+@app.get("/account", response_class=HTMLResponse, name="account_page")
+def account_page(request: Request, user: CurrentUser):
+    if user is None:
+        return templates.TemplateResponse(request, "login.html")
+    return templates.TemplateResponse(request, "account.html", {"user": user})
 
 # for API, Swagger etc
 @app.post("/create_url", response_model=schemas.URLInfo)
-def create_url(url: schemas.URLBase, db: DBSession):
+def create_url(request: Request, url: schemas.URLBase, db: DBSession):
     db_url = crud.create_db_url(db=db, url=url)
-    return get_admin_info(db_url)
+    return get_admin_info(request, db_url)
 
 @app.post("/create_url/form", response_class=HTMLResponse, name="create_url_form")
 def create_url_form(request: Request, target_url: Annotated[str, Form()], db: DBSession):
@@ -75,13 +67,13 @@ def create_url_form(request: Request, target_url: Annotated[str, Form()], db: DB
     except ValidationError as e:
         return templates.TemplateResponse(
             request, "partials/create-key-result.html",
-            {"error": e.errors()[0]["msg"]},
+            {"error": validation_error(e)},
         )
 
     db_url = crud.create_db_url(db=db, url=url)
     return templates.TemplateResponse(
         request, "partials/create-key-result.html",
-        {"link": get_admin_info(db_url)},
+        {"link": get_admin_info(request, db_url)},
     )
 
 @app.get("/go/lookup", response_class=HTMLResponse, name="lookup_key")
@@ -124,7 +116,7 @@ def forward_to_target_url(
 )
 def manage_key(secret_key: str, request: Request, db: DBSession):
     if db_url := crud.get_db_url_by_secret_key(db, secret_key=secret_key):
-        return get_admin_info(db_url)
+        return get_admin_info(request, db_url)
     else:
         raise_not_found(request)
 
@@ -138,7 +130,7 @@ def manage_key_form(secret_key: Annotated[str, Form()],
     db_url_info = None
     error = None
     if db_url := crud.get_db_url_by_secret_key(db, secret_key=secret_key):
-        db_url_info = get_admin_info(db_url)
+        db_url_info = get_admin_info(request, db_url)
     else:
         error = "There is no link with this admin key"
     return templates.TemplateResponse(
@@ -172,3 +164,57 @@ def manage_key_delete(secret_key: Annotated[str, Form()],
         # needs a link back to it.
         {"deleted": db_url, "error": error, "back_link": True},
     )
+
+@app.post("/sign_up", response_class=HTMLResponse, name="sign_up")
+def sign_up(
+    request: Request,
+    db: DBSession,
+    username: Annotated[str, Form()],
+    password: Annotated[str, Form()],
+    confirm_password: Annotated[str, Form()],
+    email: Annotated[str, Form()] = ""
+):
+    try:
+        user = schemas.UserCreate(
+            username=username.strip().lower(),
+            email=email,
+            password=password,
+            confirm_password=confirm_password,
+        )
+    except ValidationError as e:
+        return templates.TemplateResponse(
+            request, "partials/form-error.html", {"error": validation_error(e)}
+        )
+    if crud.get_user_by_username(db, user.username):
+        return templates.TemplateResponse(
+            request, "partials/form-error.html", {"error": "That username is taken."}
+        )
+    if user.email and crud.get_user_by_email(db, user.email):
+        return templates.TemplateResponse(
+            request, "partials/form-error.html",
+            {"error": "An account with this email already exists."},
+        )
+    user = crud.create_user(db, user)
+    log_in(request, user)
+    return HTMLResponse("", headers={"HX-Redirect": str(request.url_for("account_page"))})
+
+@app.post("/login", response_class=HTMLResponse, name="login")
+def login(
+    request: Request,
+    db: DBSession,
+    username: Annotated[str, Form()],
+    password: Annotated[str, Form()],
+):
+    user = crud.get_user_by_username(db, username.strip().lower())
+    if not user or not security.verify_password(password, user.password_hash):
+        return templates.TemplateResponse(
+            request, "partials/form-error.html",
+            {"error": "Invalid username or password."},
+        )
+    log_in(request, user)
+    return HTMLResponse("", headers={"HX-Redirect": str(request.url_for("account_page"))})
+
+@app.post("/logout", name="logout")
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(request.url_for("account_page"), status_code=303)

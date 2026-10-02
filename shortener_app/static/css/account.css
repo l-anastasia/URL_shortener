@@ -1,0 +1,10 @@
+/* Account page for a logged-in user (account.html) */
+
+.card{max-width:400px}
+.btn-secondary{background:var(--surface-2);color:var(--text);border-color:var(--border)}
+.btn-secondary:hover{background:var(--border)}
+
+.detail-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:11px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:20px}
+.detail-row .d-label{font-size:12px;font-weight:600;color:var(--muted);flex-shrink:0}
+.detail-row .d-value{font-size:13px;color:var(--text);word-break:break-all;text-align:right}
+.detail-row .d-value.muted{color:var(--muted)}

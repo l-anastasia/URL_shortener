@@ -18,3 +18,13 @@ class URL(Base):
 
     def __repr__(self):
         return f"<URL key={self.key!r} target_url={self.target_url!r}>"
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    username: Mapped[str] = mapped_column(unique=True, index=True)
+    password_hash: Mapped[str]
+    email: Mapped[str | None] = mapped_column(unique=True, index=True)
+    

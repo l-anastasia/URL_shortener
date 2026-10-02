@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Account — Revelio</title>
+<link rel="stylesheet" href="{{ url_for('static', path='css/base.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', path='css/account.css') }}">
+</head>
+<body>
+
+{# Shown by GET /account when a user is logged in. Context: user - the logged-in User. #}
+{% set active_page = "account_page" %}
+{% include "partials/topbar.html" %}
+
+<div class="page">
+  <div class="card">
+    <h1>{{ user.username }}</h1>
+    <p class="subtitle">
+      Member since
+      <time data-local datetime="{{ user.created_at.isoformat() }}Z">
+        {{ user.created_at.strftime('%b %d, %Y') }} UTC
+      </time>
+    </p>
+
+    <div class="detail-row">
+      <span class="d-label">Email</span>
+      {% if user.email %}
+        <span class="d-value">{{ user.email }}</span>
+      {% else %}
+        <span class="d-value muted">No email added</span>
+      {% endif %}
+    </div>
+
+    {# Plain form, no htmx: the browser POSTs and follows the redirect to /account,
+       which then shows the login form. #}
+    <form method="post" action="{{ url_for('logout') }}">
+      <button type="submit" class="btn btn-secondary">Log out</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Show the UTC date from the server in the visitor's local format.
+  document.querySelectorAll('time[data-local]').forEach((el) => {
+    const date = new Date(el.dateTime);
+    el.textContent = date.toLocaleDateString(undefined, { dateStyle: 'medium' });
+    el.title = date.toString();
+  });
+</script>
+
+</body>
+</html>

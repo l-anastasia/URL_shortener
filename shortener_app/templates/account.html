@@ -6,10 +6,13 @@
 <title>Account — Revelio</title>
 <link rel="stylesheet" href="{{ url_for('static', path='css/base.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', path='css/account.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.11/dist/htmx.min.js" integrity="sha384-2OatzQy1H+Zd/IIrjr1TcuDGqLXeHhbooAyJY1KdQMKnr4LZ22k31GBLdYKHmVjg" crossorigin="anonymous"></script>
 </head>
 <body>
 
-{# Shown by GET /account when a user is logged in. Context: user - the logged-in User. #}
+{# Shown by GET /account when a user is logged in.
+   Context: user  - the logged-in User
+            links - their active links, newest first (passed through get_admin_info) #}
 {% set active_page = "account_page" %}
 {% include "partials/topbar.html" %}
 
@@ -32,6 +35,49 @@
       {% endif %}
     </div>
 
+    <h2 class="section-title">Your links</h2>
+    <div class="link-list">
+      {% for link in links %}
+        <div class="link-row">
+          <div class="link-main">
+            <a href="{{ link.url }}" class="link-short" target="_blank" rel="noopener">{{ link.key }}</a>
+            <span class="link-target" title="{{ link.target_url }}">{{ link.target_url }}</span>
+            <div class="link-secret">
+              <span class="link-secret-label">Admin key</span>
+              {# Masked by default; the page script swaps in data-value on "Show". #}
+              <span class="secret-value" data-value="{{ link.secret_key }}">••••••••••</span>
+              <button type="button" class="link-btn" data-toggle-secret>Show</button>
+              <button type="button" class="link-btn" data-copy-secret>Copy</button>
+            </div>
+          </div>
+          <div class="link-meta">
+            <span>{{ link.clicks }} {{ "click" if link.clicks == 1 else "clicks" }}</span>
+            <time data-local datetime="{{ link.created_at.isoformat() }}Z">
+              {{ link.created_at.strftime('%b %d, %Y') }} UTC
+            </time>
+            <button type="button" class="link-btn link-delete" data-confirm-open>Delete</button>
+          </div>
+          {# Hidden until "Delete" adds .confirming to the row. On success the server
+             answers with an empty 200, and outerHTML replaces the whole row with it. #}
+          <div class="row-confirm">
+            <span>Delete <strong>{{ link.key }}</strong>? The short link will stop working.</span>
+            <button type="button" class="link-btn" data-confirm-cancel>Cancel</button>
+            <button type="button" class="link-btn link-delete"
+                    hx-delete="{{ url_for('account_delete_url', url_key=link.key) }}"
+                    hx-target="closest .link-row"
+                    hx-swap="outerHTML"
+                    hx-disabled-elt="this, previous [data-confirm-cancel]">
+              Yes, delete
+            </button>
+          </div>
+        </div>
+      {% else %}
+        <p class="muted">
+          No links yet. <a href="{{ url_for('create_url_page') }}">Create your first key</a>
+        </p>
+      {% endfor %}
+    </div>
+
     {# Plain form, no htmx: the browser POSTs and follows the redirect to /account,
        which then shows the login form. #}
     <form method="post" action="{{ url_for('logout') }}">
@@ -46,6 +92,42 @@
     const date = new Date(el.dateTime);
     el.textContent = date.toLocaleDateString(undefined, { dateStyle: 'medium' });
     el.title = date.toString();
+  });
+
+  // Admin keys: Show/Hide and Copy. One listener on the document handles the
+  // buttons in every row; each button finds the key in its own row.
+  document.addEventListener('click', async (e) => {
+    const toggle = e.target.closest('[data-toggle-secret]');
+    const copy = e.target.closest('[data-copy-secret]');
+    if (!toggle && !copy) return;
+    const btn = toggle || copy;
+    const value = btn.parentElement.querySelector('.secret-value');
+
+    if (toggle) {
+      const hidden = btn.textContent === 'Show';
+      value.textContent = hidden ? value.dataset.value : '••••••••••';
+      btn.textContent = hidden ? 'Hide' : 'Show';
+      return;
+    }
+
+    // Copy always copies the real key, even while it's masked.
+    try {
+      await navigator.clipboard.writeText(value.dataset.value);
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 1500);
+    } catch {
+      btn.textContent = 'Copy failed';
+      setTimeout(() => btn.textContent = 'Copy', 1500);
+    }
+  });
+
+  // Delete confirmation per row: "Delete" opens the confirm line in its own row,
+  // "Cancel" closes it. The DELETE request itself is sent by htmx from "Yes, delete".
+  document.addEventListener('click', (e) => {
+    const open = e.target.closest('[data-confirm-open]');
+    const cancel = e.target.closest('[data-confirm-cancel]');
+    if (!open && !cancel) return;
+    e.target.closest('.link-row').classList.toggle('confirming', !!open);
   });
 </script>
 

@@ -37,8 +37,8 @@ def read_root(request: Request):
     return templates.TemplateResponse(request, "index.html")
 
 @app.get("/create_url", response_class=HTMLResponse, name="create_url_page")
-def create_url_page(request: Request):
-    return templates.TemplateResponse(request, "create-key.html")
+def create_url_page(request: Request, user: CurrentUser):
+    return templates.TemplateResponse(request, "create-key.html", {"user": user})
 
 @app.get("/go", response_class=HTMLResponse, name="redirect_page")
 def redirect_page(request: Request):
@@ -49,10 +49,11 @@ def manage_page(request: Request):
     return templates.TemplateResponse(request, "manage-key.html")
 
 @app.get("/account", response_class=HTMLResponse, name="account_page")
-def account_page(request: Request, user: CurrentUser):
+def account_page(request: Request, user: CurrentUser, db: DBSession):
     if user is None:
         return templates.TemplateResponse(request, "login.html")
-    return templates.TemplateResponse(request, "account.html", {"user": user})
+    links = [get_admin_info(request, u) for u in crud.get_urls_by_owner(db, user.id)]
+    return templates.TemplateResponse(request, "account.html", {"user": user, "links": links})
 
 # for API, Swagger etc
 @app.post("/create_url", response_model=schemas.URLInfo)
@@ -61,7 +62,12 @@ def create_url(request: Request, url: schemas.URLBase, db: DBSession):
     return get_admin_info(request, db_url)
 
 @app.post("/create_url/form", response_class=HTMLResponse, name="create_url_form")
-def create_url_form(request: Request, target_url: Annotated[str, Form()], db: DBSession):
+def create_url_form(
+    request: Request,
+    target_url: Annotated[str, Form()],
+    db: DBSession,
+    user: CurrentUser,
+    link_to_account: Annotated[bool, Form()] = False):
     try:
         url = schemas.URLBase(target_url=target_url)
     except ValidationError as e:
@@ -70,7 +76,9 @@ def create_url_form(request: Request, target_url: Annotated[str, Form()], db: DB
             {"error": validation_error(e)},
         )
 
-    db_url = crud.create_db_url(db=db, url=url)
+    owner_id = user.id if user and link_to_account else None
+
+    db_url = crud.create_db_url(db=db, url=url, owner_id=owner_id)
     return templates.TemplateResponse(
         request, "partials/create-key-result.html",
         {"link": get_admin_info(request, db_url)},
@@ -141,7 +149,7 @@ def manage_key_form(secret_key: Annotated[str, Form()],
 # for API, Swagger etc
 @app.delete("/manage_key_delete/{secret_key}")
 def delete_url(secret_key: str, request: Request, db: DBSession):
-    if db_url := crud.deactivate_db_url(db, secret_key=secret_key):
+    if db_url := crud.deactivate_db_url_by_secret(db, secret_key=secret_key):
         message = f"Successfully deleted shortened URL for '{db_url.target_url}'"
         return {"detail": message}
     else:
@@ -155,7 +163,7 @@ def manage_key_delete(secret_key: Annotated[str, Form()],
                       db: DBSession):
     error = None
     secret_key = secret_key.strip().upper()
-    db_url = crud.deactivate_db_url(db, secret_key=secret_key)
+    db_url = crud.deactivate_db_url_by_secret(db, secret_key=secret_key)
     if not db_url:
         error = "There is no link with this admin key"
     return templates.TemplateResponse(
@@ -164,6 +172,17 @@ def manage_key_delete(secret_key: Annotated[str, Form()],
         # needs a link back to it.
         {"deleted": db_url, "error": error, "back_link": True},
     )
+
+@app.delete("/account/links/{url_key}",
+            response_class=HTMLResponse,
+            name="account_delete_url")
+def account_delete_url(url_key: str,
+                       request: Request,
+                       user: CurrentUser,
+                       db: DBSession):
+    if user is None or not crud.deactivate_db_url_by_owner(db, url_key=url_key, owner_id=user.id):
+        raise_not_found(request)
+    return HTMLResponse("")
 
 @app.post("/sign_up", response_class=HTMLResponse, name="sign_up")
 def sign_up(

@@ -53,6 +53,14 @@
         <button type="button" class="link-btn" data-toggle-secret>Show</button>
       </div>
     </div>
+        <div class="detail-row">
+      <span class="d-label">Owner</span>
+      {% if link.owner %}
+        <span class="d-value mono">{{ link.owner.username }}</span>
+      {% else %}
+        <span class="d-value muted">Anonymous</span>
+      {% endif %}
+    </div>
     <div class="detail-row">
       <span class="d-label">Clicks</span>
       <span class="d-value mono">{{ link.clicks }}</span>

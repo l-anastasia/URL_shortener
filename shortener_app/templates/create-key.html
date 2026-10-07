@@ -30,6 +30,12 @@
           <input type="url" id="url-input" name="target_url" placeholder="https://example.com/a/very/long/path" required>
           <div class="hint">Must start with http:// or https://</div>
         </div>
+        {% if user %}
+        <label class="checkbox-field">
+          <input type="checkbox" name="link_to_account" value="true" checked>
+          Link this key to my account
+        </label>
+        {% endif %}
         <button type="submit" class="btn btn-primary">Create key</button>
       </form>
         <div id="create-key-output"></div>   

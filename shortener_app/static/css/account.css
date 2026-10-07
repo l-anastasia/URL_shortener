@@ -1,6 +1,6 @@
 /* Account page for a logged-in user (account.html) */
 
-.card{max-width:400px}
+.card{max-width:520px}
 .btn-secondary{background:var(--surface-2);color:var(--text);border-color:var(--border)}
 .btn-secondary:hover{background:var(--border)}
 
@@ -8,3 +8,31 @@
 .detail-row .d-label{font-size:12px;font-weight:600;color:var(--muted);flex-shrink:0}
 .detail-row .d-value{font-size:13px;color:var(--text);word-break:break-all;text-align:right}
 .detail-row .d-value.muted{color:var(--muted)}
+
+/* List of the user's links */
+.section-title{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 4px}
+.link-list{margin-bottom:20px}
+.link-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--border);font-size:13px}
+.link-row:last-child{border-bottom:1px solid var(--border)}
+.link-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+.link-short{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;color:var(--primary);text-decoration:none}
+.link-short:hover{text-decoration:underline}
+.link-target{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.link-secret{display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12px}
+.link-secret-label{color:var(--muted)}
+.secret-value{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text);letter-spacing:.03em}
+.link-btn{background:none;border:0;padding:0;color:var(--primary);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.link-btn:hover{color:var(--primary-hover)}
+.link-meta{display:flex;flex-direction:column;align-items:flex-end;gap:2px;color:var(--muted);flex-shrink:0;font-size:12px}
+/* Delete with an inline confirm line under the row (flex-basis:100% puts it on
+   its own line; the row wraps). .confirming is toggled by the page script. */
+.link-delete{color:var(--danger)}
+.link-delete:hover{color:var(--danger-hover)}
+.link-btn:disabled{opacity:.5;cursor:not-allowed}
+.row-confirm{display:none;flex-basis:100%;align-items:center;gap:12px;padding:8px 10px;font-size:12px;border-radius:var(--radius-sm);background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.25)}
+.row-confirm span{flex:1}
+.link-row.confirming .row-confirm{display:flex}
+.link-row.confirming [data-confirm-open]{display:none}
+
+.muted{color:var(--muted);font-size:13px}
+.muted a{color:var(--primary);font-weight:600;text-decoration:none}

@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from sqlalchemy import func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import func, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
 
@@ -15,6 +15,10 @@ class URL(Base):
     is_active: Mapped[bool] = mapped_column(default=True)
     clicks: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    owner_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+        )
+    owner: Mapped["User | None"] = relationship()
 
     def __repr__(self):
         return f"<URL key={self.key!r} target_url={self.target_url!r}>"

@@ -1,6 +1,9 @@
-import pytest
-from shortener_app.keygen import create_random_key, KEY_LENGTH
 import string
+
+import pytest
+
+from shortener_app.keygen import KEY_LENGTH, create_random_key
+
 
 @pytest.mark.parametrize("length", [5, 8, 20])
 def test_create_random_key(length):

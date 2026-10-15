@@ -1,12 +1,19 @@
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator, SecretStr, EmailStr 
-from pydantic_core import PydanticCustomError
 from datetime import datetime
 
 import validators
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    SecretStr,
+    field_validator,
+    model_validator,
+)
+from pydantic_core import PydanticCustomError
 from zxcvbn import zxcvbn
 
-
-MIN_PASSWORD_SCORE = 3   # zxcvbn: 0 = too guessable … 4 = very unguessable
+MIN_PASSWORD_SCORE = 3  # zxcvbn: 0 = too guessable … 4 = very unguessable
 
 
 class URLBase(BaseModel):
@@ -20,6 +27,7 @@ class URLBase(BaseModel):
             raise PydanticCustomError("invalid_url", "Your provided URL is not valid")
         return value
 
+
 class URL(URLBase):
     is_active: bool
     clicks: int
@@ -27,15 +35,17 @@ class URL(URLBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class URLInfo(URL):
     url: str
     admin_url: str
 
+
 class UserCreate(BaseModel):
     username: str = Field(min_length=5, max_length=15, pattern=r"^[a-z0-9_]+$")
     email: EmailStr | None = None
-    password: SecretStr  = Field(min_length=8, max_length=64)
-    confirm_password: SecretStr 
+    password: SecretStr = Field(min_length=8, max_length=64)
+    confirm_password: SecretStr
 
     @field_validator("email", mode="before")
     @classmethod
@@ -65,7 +75,7 @@ class UserCreate(BaseModel):
                 {"hint": hint},
             )
         return self
-    
+
     @model_validator(mode="after")
     def password_match(self):
         if self.password.get_secret_value() != self.confirm_password.get_secret_value():

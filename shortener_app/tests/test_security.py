@@ -1,8 +1,9 @@
 import pytest
+
 from shortener_app.security import hash_password, verify_password
 
-
 PASSWORD = "correct-horse-battery"
+
 
 @pytest.fixture
 def hashed():
@@ -13,10 +14,9 @@ def test_verify_password_correct(hashed):
     assert verify_password(password=PASSWORD, hashed=hashed)
 
 
-@pytest.mark.parametrize("wrong", ["wrong-password",
-                                   "Correct-Horse-Battery",
-                                   "correct-horse-battery ",
-                                   ""])
+@pytest.mark.parametrize(
+    "wrong", ["wrong-password", "Correct-Horse-Battery", "correct-horse-battery ", ""]
+)
 def test_verify_password_wrong(hashed, wrong):
     assert not verify_password(password=wrong, hashed=hashed)
 

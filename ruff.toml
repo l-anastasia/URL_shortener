@@ -1,0 +1,5 @@
+line-length = 88          # max line length (the default)
+target-version = "py312"  # your Python version
+
+[lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP"]

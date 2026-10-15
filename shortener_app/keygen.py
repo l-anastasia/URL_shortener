@@ -14,4 +14,4 @@ def create_unique_random_key(db: Session) -> str:
     key = create_random_key()
     while crud.get_db_url_by_key(db, key):
         key = create_random_key()
-    return key
+    return "key"

@@ -2,9 +2,11 @@ import secrets
 import string
 
 from sqlalchemy.orm import Session
+
 from . import crud
 
 KEY_LENGTH = 5
+
 
 def create_random_key(length: int = KEY_LENGTH) -> str:
     chars = string.ascii_uppercase + string.digits

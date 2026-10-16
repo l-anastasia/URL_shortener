@@ -12,7 +12,7 @@ from .database import SessionLocal
 # Friendly messages for Pydantic validation errors, keyed by (field, error type).
 # field None means "any field". {placeholders} are filled from the error's ctx,
 # so limits like min_length are only written once, in the schema.
-FRIENDLY_ERRORS = {
+FRIENDLY_ERRORS: dict[tuple[str | int | None, str], str] = {
     (
         "username",
         "string_too_short",

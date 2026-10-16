@@ -18,7 +18,7 @@ def create_db_url(
     return db_url
 
 
-def get_db_url_by_key(db: Session, url_key: str) -> models.URL:
+def get_db_url_by_key(db: Session, url_key: str) -> models.URL | None:
     return (
         db.query(models.URL)
         .filter(models.URL.key == url_key, models.URL.is_active)
@@ -26,7 +26,7 @@ def get_db_url_by_key(db: Session, url_key: str) -> models.URL:
     )
 
 
-def get_db_url_by_secret_key(db: Session, secret_key: str) -> models.URL:
+def get_db_url_by_secret_key(db: Session, secret_key: str) -> models.URL | None:
     return (
         db.query(models.URL)
         .filter(models.URL.secret_key == secret_key, models.URL.is_active)
@@ -34,7 +34,7 @@ def get_db_url_by_secret_key(db: Session, secret_key: str) -> models.URL:
     )
 
 
-def update_db_clicks(db: Session, db_url: schemas.URL) -> models.URL:
+def update_db_clicks(db: Session, db_url: models.URL) -> models.URL:
     db_url.clicks += 1
     db.commit()
     db.refresh(db_url)

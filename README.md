@@ -54,6 +54,41 @@ uvicorn shortener_app.main:app --reload
 
 Database tables are created on startup, but existing tables are not changed. After a change to the models, delete `shortener.db` (this removes all data) so it's recreated with the new columns.
 
+## Linting and type checking
+
+The code is formatted and linted with [Ruff](https://docs.astral.sh/ruff/) and type-checked with [mypy](https://mypy.readthedocs.io/). Both are installed with `requirements.txt`. Run them from the project root.
+
+Format the code:
+
+```bash
+ruff format
+```
+
+`ruff format --check` only lists files that would change, without changing them.
+
+Lint the code:
+
+```bash
+ruff check
+```
+
+`ruff check --fix` fixes the problems that can be fixed automatically, such as unused or unsorted imports.
+
+Check the types:
+
+```bash
+mypy .
+```
+
+| File | Settings |
+|---|---|
+| `ruff.toml` | Line length (88) and the enabled rule sets |
+| `mypy.ini` | Enables the pydantic plugin, so mypy understands pydantic models |
+
+mypy needs type hints for every library the code imports. Libraries that don't ship their own need a stub package in `requirements.txt`, such as `types-zxcvbn` for `zxcvbn`.
+
+GitHub Actions runs `ruff format --check`, `ruff check` and `mypy` on every push (see `.github/workflows/CI.yml`), and the check fails if any of them reports a problem. Run `ruff format` and `ruff check --fix` before committing.
+
 ## Endpoints
 
 | Method | Path | Type | Description |

@@ -50,14 +50,23 @@ def get_current_user(request: Request, db: DBSession) -> models.User | None:
 CurrentUser = Annotated[models.User | None, Depends(get_current_user)]
 
 
-def get_admin_info(request: Request, db_url: models.URL) -> schemas.URLInfo:
+def get_admin_info(request: Request, db_url: models.URL) -> schemas.LinkDetails:
     base_url = URL(get_settings().base_url)
     admin_endpoint = request.app.url_path_for(
         "admin_info", secret_key=db_url.secret_key
     )
-    db_url.url = str(base_url.replace(path=db_url.key))
-    db_url.admin_url = str(base_url.replace(path=admin_endpoint))
-    return db_url
+
+    return schemas.LinkDetails(
+        target_url=db_url.target_url,
+        is_active=db_url.is_active,
+        clicks=db_url.clicks,
+        created_at=db_url.created_at,
+        key=db_url.key,
+        secret_key=db_url.secret_key,
+        owner_username=db_url.owner.username if db_url.owner else None,
+        url=str(base_url.replace(path=db_url.key)),
+        admin_url=str(base_url.replace(path=admin_endpoint)),
+    )
 
 
 def log_in(request: Request, user: models.User):

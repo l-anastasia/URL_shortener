@@ -41,6 +41,12 @@ class URLInfo(URL):
     admin_url: str
 
 
+class LinkDetails(URLInfo):
+    key: str
+    secret_key: str
+    owner_username: str | None
+
+
 class UserCreate(BaseModel):
     username: str = Field(min_length=5, max_length=15, pattern=r"^[a-z0-9_]+$")
     email: EmailStr | None = None

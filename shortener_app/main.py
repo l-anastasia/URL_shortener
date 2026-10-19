@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
@@ -20,8 +21,17 @@ from .helpers import (
     validation_error,
 )
 
-app = FastAPI()
-models.Base.metadata.create_all(bind=engine)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(models.Base.metadata.create_all)
+    yield
+    await engine.dispose()
+
+
+app = FastAPI(lifespan=lifespan)
+
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 app.mount(
     "/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static"
@@ -233,8 +243,8 @@ def sign_up(
             "partials/form-error.html",
             {"error": "An account with this email already exists."},
         )
-    user = crud.create_user(db, user)
-    log_in(request, user)
+    db_user = crud.create_user(db, user)
+    log_in(request, db_user)
     return HTMLResponse(
         "", headers={"HX-Redirect": str(request.url_for("account_page"))}
     )

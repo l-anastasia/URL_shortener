@@ -1,3 +1,4 @@
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from . import keygen, models, schemas, security
@@ -35,7 +36,9 @@ def get_db_url_by_secret_key(db: Session, secret_key: str) -> models.URL | None:
 
 
 def update_db_clicks(db: Session, db_url: models.URL) -> models.URL:
-    db_url.clicks += 1
+    db.execute(update(models.URL)
+               .where(models.URL.id == db_url.id)
+               .values(clicks=models.URL.clicks + 1))
     db.commit()
     db.refresh(db_url)
     return db_url

@@ -1,7 +1,11 @@
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from .config import get_settings
+
+
+class Base(DeclarativeBase):
+    pass
 
 engine = create_engine(get_settings().db_url, connect_args={"check_same_thread": False})
 
@@ -17,4 +21,4 @@ if engine.dialect.name == "sqlite":
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base()
+

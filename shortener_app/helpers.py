@@ -1,8 +1,9 @@
+from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
 from pydantic import ValidationError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import URL
 
 from . import models, schemas
@@ -31,20 +32,17 @@ FRIENDLY_ERRORS: dict[tuple[str | int | None, str], str] = {
 }
 
 
-def get_db():
-    db = SessionLocal()
-    try:
+async def get_db() -> AsyncIterator[AsyncSession]:
+    async with SessionLocal() as db:
         yield db
-    finally:
-        db.close()
 
 
-DBSession = Annotated[Session, Depends(get_db)]
+DBSession = Annotated[AsyncSession, Depends(get_db)]
 
 
-def get_current_user(request: Request, db: DBSession) -> models.User | None:
+async def get_current_user(request: Request, db: DBSession) -> models.User | None:
     user_id = request.session.get("user_id")
-    return db.get(models.User, user_id) if user_id else None
+    return await db.get(models.User, user_id) if user_id else None
 
 
 CurrentUser = Annotated[models.User | None, Depends(get_current_user)]

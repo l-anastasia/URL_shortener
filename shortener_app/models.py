@@ -19,7 +19,7 @@ class URL(Base):
     owner_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
-    owner: Mapped["User | None"] = relationship()
+    owner: Mapped["User | None"] = relationship(lazy="selectin")
 
     def __repr__(self):
         return f"<URL key={self.key!r} target_url={self.target_url!r}>"

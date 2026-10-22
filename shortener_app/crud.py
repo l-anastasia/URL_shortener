@@ -111,3 +111,9 @@ async def get_urls_by_owner(db: AsyncSession, owner_id: int) -> list[models.URL]
         .order_by(models.URL.created_at.desc())
     )
     return list(result.all())
+
+
+async def key_exists(db: AsyncSession, key: str) -> bool:
+    return (
+        await db.scalar(select(models.URL.id).where(models.URL.key == key)) is not None
+    )

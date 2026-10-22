@@ -4,7 +4,7 @@ Web app for storing and accessing short links anonymously. Create a short key fo
 
 Optionally, create an account (username and password; email only for password recovery) to keep your links in one place: links created while logged in can be saved to the account, then listed, revealed and deleted from the account page.
 
-Built with FastAPI, SQLAlchemy, Jinja2 templates and htmx.
+Built with FastAPI, async SQLAlchemy (with aiosqlite), Jinja2 templates and htmx.
 
 ## Requirements
 
@@ -23,7 +23,7 @@ Create a `.env` file in the project root (the folder containing `requirements.tx
 ```dotenv
 ENV_NAME="Development"
 BASE_URL="http://127.0.0.1:8000"
-DB_URL="sqlite:///./shortener.db"
+DB_URL="sqlite+aiosqlite:///./shortener.db"
 SECRET_KEY="<random string, see below>"
 ```
 
@@ -31,7 +31,7 @@ SECRET_KEY="<random string, see below>"
 |---|---|
 | `ENV_NAME` | Name of the environment, printed on startup |
 | `BASE_URL` | Public address of the app, used to build the short links |
-| `DB_URL` | SQLAlchemy database URL. The SQLite file is created automatically on first run |
+| `DB_URL` | SQLAlchemy database URL. It must name an async driver: `sqlite+aiosqlite:///...` for SQLite (the file is created automatically on first run), or `postgresql+asyncpg://...` for PostgreSQL (install `asyncpg` first) |
 | `SECRET_KEY` | Signs the login session cookie. Anyone who knows it can forge logins, so keep it secret; changing it logs everyone out |
 
 Generate a `SECRET_KEY` with:

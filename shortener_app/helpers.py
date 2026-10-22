@@ -1,8 +1,9 @@
+from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
 from pydantic import ValidationError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import URL
 
 from . import models, schemas
@@ -31,33 +32,39 @@ FRIENDLY_ERRORS: dict[tuple[str | int | None, str], str] = {
 }
 
 
-def get_db():
-    db = SessionLocal()
-    try:
+async def get_db() -> AsyncIterator[AsyncSession]:
+    async with SessionLocal() as db:
         yield db
-    finally:
-        db.close()
 
 
-DBSession = Annotated[Session, Depends(get_db)]
+DBSession = Annotated[AsyncSession, Depends(get_db)]
 
 
-def get_current_user(request: Request, db: DBSession) -> models.User | None:
+async def get_current_user(request: Request, db: DBSession) -> models.User | None:
     user_id = request.session.get("user_id")
-    return db.get(models.User, user_id) if user_id else None
+    return await db.get(models.User, user_id) if user_id else None
 
 
 CurrentUser = Annotated[models.User | None, Depends(get_current_user)]
 
 
-def get_admin_info(request: Request, db_url: models.URL) -> schemas.URLInfo:
+def get_admin_info(request: Request, db_url: models.URL) -> schemas.LinkDetails:
     base_url = URL(get_settings().base_url)
     admin_endpoint = request.app.url_path_for(
         "admin_info", secret_key=db_url.secret_key
     )
-    db_url.url = str(base_url.replace(path=db_url.key))
-    db_url.admin_url = str(base_url.replace(path=admin_endpoint))
-    return db_url
+
+    return schemas.LinkDetails(
+        target_url=db_url.target_url,
+        is_active=db_url.is_active,
+        clicks=db_url.clicks,
+        created_at=db_url.created_at,
+        key=db_url.key,
+        secret_key=db_url.secret_key,
+        owner_username=db_url.owner.username if db_url.owner else None,
+        url=str(base_url.replace(path=db_url.key)),
+        admin_url=str(base_url.replace(path=admin_endpoint)),
+    )
 
 
 def log_in(request: Request, user: models.User):

@@ -1,3 +1,5 @@
+import asyncio
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
@@ -20,8 +22,17 @@ from .helpers import (
     validation_error,
 )
 
-app = FastAPI()
-models.Base.metadata.create_all(bind=engine)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(models.Base.metadata.create_all)
+    yield
+    await engine.dispose()
+
+
+app = FastAPI(lifespan=lifespan)
+
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 app.mount(
     "/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static"
@@ -37,30 +48,31 @@ app.add_middleware(
 
 
 @app.get("/", response_class=HTMLResponse, name="home")
-def read_root(request: Request):
+async def read_root(request: Request):
     return templates.TemplateResponse(request, "index.html")
 
 
 @app.get("/create_url", response_class=HTMLResponse, name="create_url_page")
-def create_url_page(request: Request, user: CurrentUser):
+async def create_url_page(request: Request, user: CurrentUser):
     return templates.TemplateResponse(request, "create-key.html", {"user": user})
 
 
 @app.get("/go", response_class=HTMLResponse, name="redirect_page")
-def redirect_page(request: Request):
+async def redirect_page(request: Request):
     return templates.TemplateResponse(request, "redirect.html")
 
 
 @app.get("/manage", response_class=HTMLResponse, name="manage_page")
-def manage_page(request: Request):
+async def manage_page(request: Request):
     return templates.TemplateResponse(request, "manage-key.html")
 
 
 @app.get("/account", response_class=HTMLResponse, name="account_page")
-def account_page(request: Request, user: CurrentUser, db: DBSession):
+async def account_page(request: Request, user: CurrentUser, db: DBSession):
     if user is None:
         return templates.TemplateResponse(request, "login.html")
-    links = [get_admin_info(request, u) for u in crud.get_urls_by_owner(db, user.id)]
+    db_links = await crud.get_urls_by_owner(db, user.id)
+    links = [get_admin_info(request, u) for u in db_links]
     return templates.TemplateResponse(
         request, "account.html", {"user": user, "links": links}
     )
@@ -68,13 +80,13 @@ def account_page(request: Request, user: CurrentUser, db: DBSession):
 
 # for API, Swagger etc
 @app.post("/create_url", response_model=schemas.URLInfo)
-def create_url(request: Request, url: schemas.URLBase, db: DBSession):
-    db_url = crud.create_db_url(db=db, url=url)
+async def create_url(request: Request, url: schemas.URLBase, db: DBSession):
+    db_url = await crud.create_db_url(db=db, url=url)
     return get_admin_info(request, db_url)
 
 
 @app.post("/create_url/form", response_class=HTMLResponse, name="create_url_form")
-def create_url_form(
+async def create_url_form(
     request: Request,
     target_url: Annotated[str, Form()],
     db: DBSession,
@@ -92,7 +104,7 @@ def create_url_form(
 
     owner_id = user.id if user and link_to_account else None
 
-    db_url = crud.create_db_url(db=db, url=url, owner_id=owner_id)
+    db_url = await crud.create_db_url(db=db, url=url, owner_id=owner_id)
     return templates.TemplateResponse(
         request,
         "partials/create-key-result.html",
@@ -101,7 +113,7 @@ def create_url_form(
 
 
 @app.get("/go/lookup", response_class=HTMLResponse, name="lookup_key")
-def lookup_key(request: Request, db: DBSession, key: str = ""):
+async def lookup_key(request: Request, db: DBSession, key: str = ""):
     # Read-only lookup for the redirect page: doesn't count as a click.
     # Keys are uppercase; the input only *displays* uppercase (CSS), so normalize here.
     key = key.strip().upper()
@@ -112,7 +124,7 @@ def lookup_key(request: Request, db: DBSession, key: str = ""):
     elif len(key) != keygen.KEY_LENGTH:
         error = f"A key is exactly {keygen.KEY_LENGTH} characters long."
     else:
-        db_url = crud.get_db_url_by_key(db=db, url_key=key)
+        db_url = await crud.get_db_url_by_key(db=db, url_key=key)
         if not db_url:
             error = "No link with this key."
     return templates.TemplateResponse(
@@ -123,9 +135,9 @@ def lookup_key(request: Request, db: DBSession, key: str = ""):
 
 
 @app.get("/{url_key}")
-def forward_to_target_url(url_key: str, request: Request, db: DBSession):
-    if db_url := crud.get_db_url_by_key(db=db, url_key=url_key):
-        crud.update_db_clicks(db=db, db_url=db_url)
+async def forward_to_target_url(url_key: str, request: Request, db: DBSession):
+    if db_url := await crud.get_db_url_by_key(db=db, url_key=url_key):
+        await crud.update_db_clicks(db=db, db_url=db_url)
         return RedirectResponse(db_url.target_url)
     else:
         raise_not_found(request)
@@ -137,21 +149,21 @@ def forward_to_target_url(url_key: str, request: Request, db: DBSession):
     name="admin_info",
     response_model=schemas.URLInfo,
 )
-def manage_key(secret_key: str, request: Request, db: DBSession):
-    if db_url := crud.get_db_url_by_secret_key(db, secret_key=secret_key):
+async def manage_key(secret_key: str, request: Request, db: DBSession):
+    if db_url := await crud.get_db_url_by_secret_key(db, secret_key=secret_key):
         return get_admin_info(request, db_url)
     else:
         raise_not_found(request)
 
 
 @app.post("/manage_key/form", response_class=HTMLResponse, name="manage_key_form")
-def manage_key_form(
+async def manage_key_form(
     secret_key: Annotated[str, Form()], request: Request, db: DBSession
 ):
     secret_key = secret_key.strip().upper()
     db_url_info = None
     error = None
-    if db_url := crud.get_db_url_by_secret_key(db, secret_key=secret_key):
+    if db_url := await crud.get_db_url_by_secret_key(db, secret_key=secret_key):
         db_url_info = get_admin_info(request, db_url)
     else:
         error = "There is no link with this admin key"
@@ -164,8 +176,8 @@ def manage_key_form(
 
 # for API, Swagger etc
 @app.delete("/manage_key_delete/{secret_key}")
-def delete_url(secret_key: str, request: Request, db: DBSession):
-    if db_url := crud.deactivate_db_url_by_secret(db, secret_key=secret_key):
+async def delete_url(secret_key: str, request: Request, db: DBSession):
+    if db_url := await crud.deactivate_db_url_by_secret(db, secret_key=secret_key):
         message = f"Successfully deleted shortened URL for '{db_url.target_url}'"
         return {"detail": message}
     else:
@@ -173,12 +185,12 @@ def delete_url(secret_key: str, request: Request, db: DBSession):
 
 
 @app.delete("/manage_key/form", response_class=HTMLResponse, name="manage_key_delete")
-def manage_key_delete(
+async def manage_key_delete(
     secret_key: Annotated[str, Form()], request: Request, db: DBSession
 ):
     error = None
     secret_key = secret_key.strip().upper()
-    db_url = crud.deactivate_db_url_by_secret(db, secret_key=secret_key)
+    db_url = await crud.deactivate_db_url_by_secret(db, secret_key=secret_key)
     if not db_url:
         error = "There is no link with this admin key"
     return templates.TemplateResponse(
@@ -193,10 +205,10 @@ def manage_key_delete(
 @app.delete(
     "/account/links/{url_key}", response_class=HTMLResponse, name="account_delete_url"
 )
-def account_delete_url(
+async def account_delete_url(
     url_key: str, request: Request, user: CurrentUser, db: DBSession
 ):
-    if user is None or not crud.deactivate_db_url_by_owner(
+    if user is None or not await crud.deactivate_db_url_by_owner(
         db, url_key=url_key, owner_id=user.id
     ):
         raise_not_found(request)
@@ -204,7 +216,7 @@ def account_delete_url(
 
 
 @app.post("/sign_up", response_class=HTMLResponse, name="sign_up")
-def sign_up(
+async def sign_up(
     request: Request,
     db: DBSession,
     username: Annotated[str, Form()],
@@ -213,7 +225,8 @@ def sign_up(
     email: Annotated[str, Form()] = "",
 ):
     try:
-        user = schemas.UserCreate(
+        user = await asyncio.to_thread(
+            schemas.UserCreate,
             username=username.strip().lower(),
             email=email,
             password=password,
@@ -223,32 +236,34 @@ def sign_up(
         return templates.TemplateResponse(
             request, "partials/form-error.html", {"error": validation_error(e)}
         )
-    if crud.get_user_by_username(db, user.username):
+    if await crud.get_user_by_username(db, user.username):
         return templates.TemplateResponse(
             request, "partials/form-error.html", {"error": "That username is taken."}
         )
-    if user.email and crud.get_user_by_email(db, user.email):
+    if user.email and await crud.get_user_by_email(db, user.email):
         return templates.TemplateResponse(
             request,
             "partials/form-error.html",
             {"error": "An account with this email already exists."},
         )
-    user = crud.create_user(db, user)
-    log_in(request, user)
+    db_user = await crud.create_user(db, user)
+    log_in(request, db_user)
     return HTMLResponse(
         "", headers={"HX-Redirect": str(request.url_for("account_page"))}
     )
 
 
 @app.post("/login", response_class=HTMLResponse, name="login")
-def login(
+async def login(
     request: Request,
     db: DBSession,
     username: Annotated[str, Form()],
     password: Annotated[str, Form()],
 ):
-    user = crud.get_user_by_username(db, username.strip().lower())
-    if not user or not security.verify_password(password, user.password_hash):
+    user = await crud.get_user_by_username(db, username.strip().lower())
+    if not user or not await asyncio.to_thread(
+        security.verify_password, password, user.password_hash
+    ):
         return templates.TemplateResponse(
             request,
             "partials/form-error.html",

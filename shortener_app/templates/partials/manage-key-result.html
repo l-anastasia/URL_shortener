@@ -1,7 +1,7 @@
 {#
   Details of one short link for the manage page.
   Context:
-    link      - the URL record passed through get_admin_info() (so link.url is set), or None
+    link      - LinkDetails from get_admin_info() (so link.url is set), or None
     error     - message to show instead, e.g. when the admin key doesn't match any link
     deleted   - the URL record that was just deleted
     back_link - true when the admin-key form is already hidden, so the error needs
@@ -55,8 +55,8 @@
     </div>
         <div class="detail-row">
       <span class="d-label">Owner</span>
-      {% if link.owner %}
-        <span class="d-value mono">{{ link.owner.username }}</span>
+      {% if link.owner_username  %}
+        <span class="d-value mono">{{ link.owner_username }}</span>
       {% else %}
         <span class="d-value muted">Anonymous</span>
       {% endif %}

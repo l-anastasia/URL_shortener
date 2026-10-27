@@ -1,15 +1,23 @@
 from functools import lru_cache
+from pathlib import Path
+from typing import Literal
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
-    env_name: str = "Local"
-    base_url: str = "http://localhost:8000"
-    db_url: str = "sqlite+aiosqlite:///./shortener.db"
-    secret_key: str = "dev-only-change-me"
+    model_config = SettingsConfigDict(env_file=PROJECT_ROOT / ".env")
 
-    model_config = SettingsConfigDict(env_file=".env")
+    # safe default: only a label
+    env_name: Literal["local", "development", "staging", "production"] = "local"
+
+    # required: the app won't start without them
+    base_url: str
+    db_url: str
+    session_secret_key: SecretStr
 
 
 @lru_cache

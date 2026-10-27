@@ -17,6 +17,10 @@ jobs:
 
   test:
     runs-on: ubuntu-latest   # on a fresh Linux machine
+    env:
+      BASE_URL: http://localhost:8000
+      DB_URL: sqlite+aiosqlite:///./test.db
+      SESSION_SECRET_KEY: test-only-not-secret
     steps:
       - uses: actions/checkout@v6 
       - uses: actions/setup-python@v5 

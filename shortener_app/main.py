@@ -40,7 +40,7 @@ app.mount(
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key=get_settings().secret_key,
+    secret_key=get_settings().session_secret_key.get_secret_value(),
     same_site="lax",
     https_only=False,
     max_age=7 * 24 * 3600,

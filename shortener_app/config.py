@@ -1,3 +1,4 @@
+import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -23,5 +24,5 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
-    print(f"Loading settings for: {settings.env_name}")
+    print(f"Loading settings for: {settings.env_name}", file=sys.stderr)
     return settings

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "revelio": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "shortener_app.mcp_server"]
+    }
+  }
+}

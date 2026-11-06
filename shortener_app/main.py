@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import crud, keygen, models, schemas, security
+from . import crud, keygen, schemas, security
 from .config import get_settings
 from .database import engine
 from .helpers import (
@@ -25,8 +25,6 @@ from .helpers import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.create_all)
     yield
     await engine.dispose()
 

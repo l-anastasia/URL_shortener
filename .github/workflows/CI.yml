@@ -17,9 +17,23 @@ jobs:
 
   test:
     runs-on: ubuntu-latest   # on a fresh Linux machine
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: shortener
+          POSTGRES_PASSWORD: shortener
+          POSTGRES_DB: shortener
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U shortener -d shortener"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     env:
       BASE_URL: http://localhost:8000
-      DB_URL: sqlite+aiosqlite:///./test.db
+      DB_URL: postgresql+asyncpg://shortener:shortener@localhost:5432/shortener
       SESSION_SECRET_KEY: test-only-not-secret
     steps:
       - uses: actions/checkout@v6
@@ -28,5 +42,9 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: uv sync --locked   # fails if uv.lock doesn't match pyproject.toml
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+      - name: Check models match migrations
+        run: uv run alembic check
       - name: Run tests
         run: uv run pytest -v

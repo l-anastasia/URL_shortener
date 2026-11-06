@@ -4,11 +4,12 @@ Web app for storing and accessing short links anonymously. Create a short key fo
 
 Optionally, create an account (username and password; email only for password recovery) to keep your links in one place: links created while logged in can be saved to the account, then listed, revealed and deleted from the account page.
 
-Built with FastAPI, async SQLAlchemy (with aiosqlite), Jinja2 templates and htmx.
+Built with FastAPI, async SQLAlchemy (with asyncpg and PostgreSQL), Alembic, Jinja2 templates and htmx. Runs in Docker with Docker Compose.
 
 ## Requirements
 
 - [uv](https://docs.astral.sh/uv/), which manages Python, the virtual environment and the dependencies
+- [Docker](https://docs.docker.com/get-started/get-docker/) with Docker Compose, which runs PostgreSQL and the app
 
 uv installs Python 3.12 (pinned in `.python-version`) if it's missing. Install the dependencies:
 
@@ -33,7 +34,7 @@ Copy `.env.example` to `.env` in the project root (the folder containing `pyproj
 ```dotenv
 ENV_NAME=local
 BASE_URL=http://localhost:8000
-DB_URL=sqlite+aiosqlite:///./shortener.db
+DB_URL=postgresql+asyncpg://shortener:shortener@localhost:5432/shortener
 SESSION_SECRET_KEY=<random string, see below>
 ```
 
@@ -41,7 +42,7 @@ SESSION_SECRET_KEY=<random string, see below>
 |---|---|
 | `ENV_NAME` | Name of the environment, printed on startup: `local` (the default), `development`, `staging` or `production` |
 | `BASE_URL` | Public address of the app, used to build the short links |
-| `DB_URL` | SQLAlchemy database URL. It must name an async driver: `sqlite+aiosqlite:///...` for SQLite (the file is created automatically on first run), or `postgresql+asyncpg://...` for PostgreSQL (install `asyncpg` first) |
+| `DB_URL` | SQLAlchemy database URL, used when the app runs on your machine. It must name an async driver: `postgresql+asyncpg://...` for PostgreSQL, or `sqlite+aiosqlite:///...` for SQLite. Docker Compose sets its own value that points to the `db` service |
 | `SESSION_SECRET_KEY` | Signs the login session cookie. Anyone who knows it can forge logins, so keep it secret; changing it logs everyone out |
 
 Generate a `SESSION_SECRET_KEY` with:
@@ -52,9 +53,37 @@ uv run python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 The `.env` file is not committed to git. `BASE_URL`, `DB_URL` and `SESSION_SECRET_KEY` are required: without them the app doesn't start.
 
-## Running locally
+## Running with Docker
 
 From the project root:
+
+```bash
+docker compose up --build
+```
+
+This builds the image, starts PostgreSQL, applies the migrations, then starts the app at http://localhost:8000. Stop it with `Ctrl+C`.
+
+| Service | What it does |
+|---|---|
+| `db` | Runs PostgreSQL and keeps its data in the `pgdata` volume |
+| `migrate` | Runs `alembic upgrade head`, then exits |
+| `web` | Runs the app once the migrations have finished |
+
+`docker compose down` removes the containers and keeps the data. `docker compose down -v` also deletes the `pgdata` volume, which removes all data.
+
+## Running locally
+
+To run the app outside Docker, start only the database and apply the migrations. From the project root:
+
+```bash
+docker compose up -d db
+```
+
+```bash
+uv run alembic upgrade head
+```
+
+Then start the app:
 
 ```bash
 uv run uvicorn shortener_app.main:app --reload
@@ -62,9 +91,32 @@ uv run uvicorn shortener_app.main:app --reload
 
 `uv run` runs a command inside the project's `.venv`, so there's no need to activate it.
 
-`--reload` restarts the server when you change Python files. Stop it with `Ctrl+C`.
+`--reload` restarts the server when you change Python files. Stop it with `Ctrl+C`. The database keeps running until you run `docker compose stop`.
 
-Database tables are created on startup, but existing tables are not changed. After a change to the models, delete `shortener.db` (this removes all data) so it's recreated with the new columns.
+Port 8000 can only be used by one app at a time, so don't run this and the `web` service together.
+
+## Database migrations
+
+[Alembic](https://alembic.sqlalchemy.org/) manages the database tables: the app doesn't create them on startup. Each change is a script in `migrations/versions/`.
+
+After a change to the models, generate a migration:
+
+```bash
+uv run alembic revision --autogenerate -m "describe the change"
+```
+
+Read the generated file, because autogenerate can miss changes or get them wrong. Then apply it and commit it with the model change:
+
+```bash
+uv run alembic upgrade head
+```
+
+| Command | What it does |
+|---|---|
+| `uv run alembic current` | Shows which migration the database is on |
+| `uv run alembic history` | Lists all migrations |
+| `uv run alembic check` | Checks that the models and migrations match |
+| `uv run alembic downgrade -1` | Undoes the latest migration |
 
 ## Linting and type checking
 
@@ -120,7 +172,7 @@ GitHub Actions runs `ruff format --check`, `ruff check`, `mypy` and `pytest` on 
 
 The server talks to the client over stdin/stdout (the stdio transport), so the code it runs must not print to stdout: use stderr or `logging` instead.
 
-Claude Code reads `.mcp.json` and starts the server itself with `uv run python -m shortener_app.mcp_server`. Open Claude Code in the project root and approve the `revelio` server when asked. It uses the same `.env` and database as the web app, so start the web app once first to create the tables.
+Claude Code reads `.mcp.json` and starts the server itself with `uv run python -m shortener_app.mcp_server`. Open Claude Code in the project root and approve the `revelio` server when asked. It uses the same `.env` and database as the web app, so start the database and apply the migrations first (see [Running locally](#running-locally)).
 
 To try the tools without an AI client, use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) (needs Node.js):
 

@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: shortener
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shortener}
+      POSTGRES_DB: shortener
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shortener -d shortener"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    build: .
+    image: url-shortener
+    command: ["alembic", "upgrade", "head"]
+    environment: &app-env
+      ENV_NAME: ${ENV_NAME:-local}
+      BASE_URL: ${BASE_URL:-http://localhost:8000}
+      DB_URL: postgresql+asyncpg://shortener:${POSTGRES_PASSWORD:-shortener}@db:5432/shortener
+      SESSION_SECRET_KEY: ${SESSION_SECRET_KEY:?set it in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: .
+    image: url-shortener
+    environment: *app-env
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+volumes:
+  pgdata:

@@ -4,10 +4,13 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from starlette.middleware.sessions import SessionMiddleware
 
 from . import crud, keygen, schemas, security
@@ -30,8 +33,11 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
 
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+
 app.mount(
     "/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static"
 )
@@ -40,9 +46,22 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=get_settings().session_secret_key.get_secret_value(),
     same_site="lax",
-    https_only=False,
+    https_only=get_settings().base_url.startswith("https://"),
     max_age=7 * 24 * 3600,
 )
+
+
+async def rate_limit_exceeded(request: Request, exc: Exception):
+    message = "Too many requests. Please wait a bit and try again."
+    if "HX-Request" in request.headers:
+        # htmx only displays 2xx responses
+        return templates.TemplateResponse(
+            request, "partials/form-error.html", {"error": message}
+        )
+    return JSONResponse({"detail": message}, status_code=429)
+
+
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded)
 
 
 @app.get("/", response_class=HTMLResponse, name="home")
@@ -78,12 +97,14 @@ async def account_page(request: Request, user: CurrentUser, db: DBSession):
 
 # for API, Swagger etc
 @app.post("/create_url", response_model=schemas.URLInfo)
+@limiter.limit("10/minute;100/day")
 async def create_url(request: Request, url: schemas.URLBase, db: DBSession):
     db_url = await crud.create_db_url(db=db, url=url)
     return get_admin_info(request, db_url)
 
 
 @app.post("/create_url/form", response_class=HTMLResponse, name="create_url_form")
+@limiter.limit("10/minute;100/day")
 async def create_url_form(
     request: Request,
     target_url: Annotated[str, Form()],
@@ -111,6 +132,7 @@ async def create_url_form(
 
 
 @app.get("/go/lookup", response_class=HTMLResponse, name="lookup_key")
+@limiter.limit("20/minute")
 async def lookup_key(request: Request, db: DBSession, key: str = ""):
     # Read-only lookup for the redirect page: doesn't count as a click.
     # Keys are uppercase; the input only *displays* uppercase (CSS), so normalize here.
@@ -133,6 +155,7 @@ async def lookup_key(request: Request, db: DBSession, key: str = ""):
 
 
 @app.get("/{url_key}")
+@limiter.limit("20/minute")
 async def forward_to_target_url(url_key: str, request: Request, db: DBSession):
     if db_url := await crud.get_db_url_by_key(db=db, url_key=url_key):
         await crud.update_db_clicks(db=db, db_url=db_url)
@@ -147,6 +170,7 @@ async def forward_to_target_url(url_key: str, request: Request, db: DBSession):
     name="admin_info",
     response_model=schemas.URLInfo,
 )
+@limiter.limit("20/minute")
 async def manage_key(secret_key: str, request: Request, db: DBSession):
     if db_url := await crud.get_db_url_by_secret_key(db, secret_key=secret_key):
         return get_admin_info(request, db_url)
@@ -155,6 +179,7 @@ async def manage_key(secret_key: str, request: Request, db: DBSession):
 
 
 @app.post("/manage_key/form", response_class=HTMLResponse, name="manage_key_form")
+@limiter.limit("10/minute")
 async def manage_key_form(
     secret_key: Annotated[str, Form()], request: Request, db: DBSession
 ):
@@ -174,6 +199,7 @@ async def manage_key_form(
 
 # for API, Swagger etc
 @app.delete("/manage_key_delete/{secret_key}")
+@limiter.limit("10/minute")
 async def delete_url(secret_key: str, request: Request, db: DBSession):
     if db_url := await crud.deactivate_db_url_by_secret(db, secret_key=secret_key):
         message = f"Successfully deleted shortened URL for '{db_url.target_url}'"
@@ -183,6 +209,7 @@ async def delete_url(secret_key: str, request: Request, db: DBSession):
 
 
 @app.delete("/manage_key/form", response_class=HTMLResponse, name="manage_key_delete")
+@limiter.limit("10/minute")
 async def manage_key_delete(
     secret_key: Annotated[str, Form()], request: Request, db: DBSession
 ):
@@ -214,6 +241,7 @@ async def account_delete_url(
 
 
 @app.post("/sign_up", response_class=HTMLResponse, name="sign_up")
+@limiter.limit("5/hour")
 async def sign_up(
     request: Request,
     db: DBSession,
@@ -252,6 +280,7 @@ async def sign_up(
 
 
 @app.post("/login", response_class=HTMLResponse, name="login")
+@limiter.limit("5/minute")
 async def login(
     request: Request,
     db: DBSession,

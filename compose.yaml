@@ -24,6 +24,7 @@ services:
       BASE_URL: ${BASE_URL:-http://localhost:8000}
       DB_URL: postgresql+asyncpg://shortener:${POSTGRES_PASSWORD:-shortener}@db:5432/shortener
       SESSION_SECRET_KEY: ${SESSION_SECRET_KEY:?set it in .env}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
     depends_on:
       db:
         condition: service_healthy

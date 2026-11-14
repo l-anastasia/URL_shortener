@@ -13,31 +13,33 @@ class BlockReason(Enum):
     LOCAL_ADDRESS = "This link points to a private or local address."
     SELF_LINK = "You can't shorten a link that points to this site."
     SHORTENER = (
-        "Links to other URL shorteners aren't allowed. "
-        "Paste the original link instead."
+        "Links to other URL shorteners aren't allowed. Paste the original link instead."
     )
     UNSAFE = "This link looks unsafe, so we won't shorten it."
 
+
 class UnsafeURLError(Exception):
     def __init__(self, reason: BlockReason):
-        super().__init__(reason.value)   # so str(e) and logs show the reason too
+        super().__init__(reason.value)  # so str(e) and logs show the reason too
         self.reason = reason
 
 
-SHORTENER_DOMAINS = frozenset({
-    "bit.ly", 
-    "tinyurl.com",
-    "t.co",
-    "goo.gl",
-    "is.gd",
-    "ow.ly",
-    "buff.ly",
-    "rebrand.ly",
-    "cutt.ly",
-    "shorturl.at",
-    "tiny.cc",
-    "rb.gy",
-    }) 
+SHORTENER_DOMAINS = frozenset(
+    {
+        "bit.ly",
+        "tinyurl.com",
+        "t.co",
+        "goo.gl",
+        "is.gd",
+        "ow.ly",
+        "buff.ly",
+        "rebrand.ly",
+        "cutt.ly",
+        "shorturl.at",
+        "tiny.cc",
+        "rb.gy",
+    }
+)
 
 
 def _host_matches(host: str, domain: str) -> bool:
@@ -54,7 +56,7 @@ def check_local_rules(url: str) -> None:
     if parts.username is not None:
         logger.info("Blocked %s: URL obfuscation ", url)
         raise UnsafeURLError(BlockReason.UNSAFE)
-    if host is None:
+    if not host:
         logger.info("Blocked %s: URL obfuscation ", url)
         raise UnsafeURLError(BlockReason.UNSAFE)
 
@@ -66,14 +68,19 @@ def check_local_rules(url: str) -> None:
         logger.info("Blocked %s: ip is not public - %r", url, ip)
         raise UnsafeURLError(BlockReason.LOCAL_ADDRESS)
 
+    if _host_matches(host, "localhost"):
+        logger.info("Blocked %s: localhost - %r", url, host)
+        raise UnsafeURLError(BlockReason.LOCAL_ADDRESS)
+
     own_host = urlsplit(get_settings().base_url).hostname
     if host == own_host:
-        logger.info("Blocked %s: it us - %r", url, host)
+        logger.info("Blocked %s: it's us - %r", url, host)
         raise UnsafeURLError(BlockReason.SELF_LINK)
-    
+
     if any(_host_matches(host, d) for d in SHORTENER_DOMAINS):
         logger.info("Blocked %s: shortener host %r", url, host)
         raise UnsafeURLError(BlockReason.SHORTENER)
+
 
 async def check_url(url: str) -> None:
     check_local_rules(url)

@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     db_url: str
     session_secret_key: SecretStr
 
+    # optional: without it checks are skipped (tests, CI)
+    google_safe_browsing_api_key: SecretStr | None = None
+    anthropic_api_key: SecretStr | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:

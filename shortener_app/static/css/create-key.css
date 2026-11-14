@@ -18,3 +18,6 @@
 .copy-btn:hover{background:var(--surface-2)}
 .copy-btn svg{width:14px;height:14px}
 .result-label-spaced{margin-top:14px}
+
+/* Errors come below the button here, not above a form as base.css assumes */
+#create-key-output .msg{margin:18px 0 0}

@@ -1,7 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 from pydantic import ValidationError
 
-from . import crud, models, schemas
+from . import crud, models, schemas, url_checks
 from .config import get_settings
 from .database import SessionLocal
 
@@ -32,6 +32,8 @@ async def create_short_link(target_url: str) -> dict:
         url = schemas.URLBase(target_url=target_url)
     except ValidationError:
         raise ValueError(f"Not a valid URL: {target_url}") from None
+
+    await url_checks.check_url(url.target_url)
     async with SessionLocal() as db:
         db_url = await crud.create_db_url(db=db, url=url)
         return link_details(db_url)

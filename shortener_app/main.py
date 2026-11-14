@@ -13,7 +13,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import crud, keygen, schemas, security
+from . import crud, keygen, schemas, security, url_checks
 from .config import get_settings
 from .database import engine
 from .helpers import (
@@ -64,6 +64,20 @@ async def rate_limit_exceeded(request: Request, exc: Exception):
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded)
 
 
+async def unsafe_url(request: Request, exc: Exception):
+    assert isinstance(exc, url_checks.UnsafeURLError)  # tells mypy what exc is
+    message = exc.reason.value
+    if "HX-Request" in request.headers:
+        # htmx only displays 2xx responses
+        return templates.TemplateResponse(
+            request, "partials/create-key-result.html", {"error": message}
+        )
+    return JSONResponse({"detail": message}, status_code=400)
+
+
+app.add_exception_handler(url_checks.UnsafeURLError, unsafe_url)
+
+
 @app.get("/", response_class=HTMLResponse, name="home")
 async def read_root(request: Request):
     return templates.TemplateResponse(request, "index.html")
@@ -99,6 +113,7 @@ async def account_page(request: Request, user: CurrentUser, db: DBSession):
 @app.post("/create_url", response_model=schemas.URLInfo)
 @limiter.limit("10/minute;100/day")
 async def create_url(request: Request, url: schemas.URLBase, db: DBSession):
+    await url_checks.check_url(url.target_url)
     db_url = await crud.create_db_url(db=db, url=url)
     return get_admin_info(request, db_url)
 
@@ -121,6 +136,7 @@ async def create_url_form(
             {"error": validation_error(e)},
         )
 
+    await url_checks.check_url(url.target_url)
     owner_id = user.id if user and link_to_account else None
 
     db_url = await crud.create_db_url(db=db, url=url, owner_id=owner_id)

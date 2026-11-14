@@ -3,6 +3,8 @@ import logging
 from enum import Enum
 from urllib.parse import urlsplit
 
+import httpx
+
 from .config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -40,6 +42,10 @@ SHORTENER_DOMAINS = frozenset(
         "rb.gy",
     }
 )
+
+
+SAFE_BROWSING_URL = "https://safebrowsing.googleapis.com/v4/threatMatches:find"
+SAFE_BROWSING_TIMEOUT = 3.0  # seconds: a slow Google shouldn't make users wait
 
 
 def _host_matches(host: str, domain: str) -> bool:
@@ -82,6 +88,48 @@ def check_local_rules(url: str) -> None:
         raise UnsafeURLError(BlockReason.SHORTENER)
 
 
+async def check_safe_browsing(url: str) -> None:
+    api_key = get_settings().google_safe_browsing_api_key
+    if api_key is None or not api_key.get_secret_value():
+        logger.warning("Safe browsing check is disabled")
+        return
+
+    body = {
+        "client": {"clientId": "revelio", "clientVersion": "0.1.0"},
+        "threatInfo": {
+            "threatTypes": [
+                "MALWARE",
+                "SOCIAL_ENGINEERING",  # phishing
+                "UNWANTED_SOFTWARE",
+                "POTENTIALLY_HARMFUL_APPLICATION",
+            ],
+            "platformTypes": ["ANY_PLATFORM"],
+            "threatEntryTypes": ["URL"],
+            "threatEntries": [{"url": url}],
+        },
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=SAFE_BROWSING_TIMEOUT) as client:
+            response = await client.post(
+                SAFE_BROWSING_URL,
+                json=body,
+                headers={"X-Goog-Api-Key": api_key.get_secret_value()},
+            )
+            response.raise_for_status()
+            matches = response.json().get("matches", [])
+    except (httpx.HTTPError, ValueError) as e:
+        # Fail open: if Google is down, the link is still created
+        logger.warning("Safe Browsing check failed for %s: %r", url, e)
+        return
+
+    if matches:
+        threats = sorted({m["threatType"] for m in matches})
+        logger.info("Blocked %s: Safe Browsing - %s", url, threats)
+        raise UnsafeURLError(BlockReason.UNSAFE)
+
+
 async def check_url(url: str) -> None:
     check_local_rules(url)
-    # later: await check_safe_browsing(url), await check_with_llm(url)
+    await check_safe_browsing(url)
+    # later: await check_with_llm(url)

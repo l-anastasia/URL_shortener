@@ -25,6 +25,7 @@ services:
       DB_URL: postgresql+asyncpg://shortener:${POSTGRES_PASSWORD:-shortener}@db:5432/shortener
       SESSION_SECRET_KEY: ${SESSION_SECRET_KEY:?set it in .env}
       GOOGLE_SAFE_BROWSING_API_KEY: ${GOOGLE_SAFE_BROWSING_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
     depends_on:
       db:

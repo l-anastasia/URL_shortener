@@ -2,6 +2,7 @@ import json
 import logging
 from types import SimpleNamespace
 
+import anthropic
 import httpx
 import pytest
 from pydantic import SecretStr
@@ -9,9 +10,11 @@ from pydantic import SecretStr
 from shortener_app import url_checks
 from shortener_app.url_checks import (
     BlockReason,
+    ClaudeVerdict,
     UnsafeURLError,
     check_local_rules,
     check_safe_browsing,
+    check_with_claude,
 )
 
 TEST_KEY = "test-key"
@@ -23,9 +26,42 @@ def fake_settings(monkeypatch):
     settings = SimpleNamespace(
         base_url="https://revel.io",
         google_safe_browsing_api_key=SecretStr(TEST_KEY),
+        anthropic_api_key=None,
     )
     monkeypatch.setattr(url_checks, "get_settings", lambda: settings)
-    return settings
+    claude_client = url_checks._claude_client  # the real one, before a test fakes it
+    claude_client.cache_clear()
+    yield settings
+    claude_client.cache_clear()
+
+
+class FakeMessages:
+    """Stands in for client.messages: records calls, returns or raises result."""
+
+    def __init__(self, result):
+        self.result = result
+        self.calls = []
+
+    async def parse(self, **kwargs):
+        self.calls.append(kwargs)
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+def fake_claude(monkeypatch, result):
+    """Make check_with_claude talk to a fake client that returns result."""
+    messages = FakeMessages(result)
+    client = SimpleNamespace(messages=messages)
+    monkeypatch.setattr(url_checks, "_claude_client", lambda: client)
+    return messages
+
+
+def claude_says(suspicious):
+    return SimpleNamespace(
+        stop_reason="end_turn",
+        parsed_output=ClaudeVerdict(suspicious=suspicious, reason="test"),
+    )
 
 
 def fake_google(monkeypatch, handler):
@@ -127,3 +163,46 @@ async def test_google_skipped_without_key(monkeypatch, fake_settings):
 
     await check_safe_browsing("https://example.com/")
     assert sent == []  # Google was never called
+
+
+# Claude
+@pytest.mark.anyio
+async def test_claude_suspicious_blocks(monkeypatch):
+    fake_claude(monkeypatch, claude_says(suspicious=True))
+    with pytest.raises(UnsafeURLError) as exc_info:
+        await check_with_claude("https://paypal-login-secure.xyz/verify")
+    assert exc_info.value.reason == BlockReason.UNSAFE
+
+
+@pytest.mark.anyio
+async def test_claude_not_suspicious_allows(monkeypatch):
+    messages = fake_claude(monkeypatch, claude_says(suspicious=False))
+    await check_with_claude("https://github.com/anthropics")  # no exception = allowed
+
+    # The URL reached Claude, inside the <url> tags
+    content = messages.calls[0]["messages"][0]["content"]
+    assert content == "<url>https://github.com/anthropics</url>"
+
+
+@pytest.mark.anyio
+async def test_claude_refusal_allows(monkeypatch, caplog):
+    fake_claude(monkeypatch, SimpleNamespace(stop_reason="refusal", parsed_output=None))
+    with caplog.at_level(logging.WARNING, logger="shortener_app.url_checks"):
+        await check_with_claude("https://example.com/")  # fail open: no exception
+    assert "Claude gave no verdict" in caplog.text
+
+
+@pytest.mark.anyio
+async def test_claude_error_allows(monkeypatch, caplog):
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    fake_claude(monkeypatch, anthropic.APITimeoutError(request=request))
+    with caplog.at_level(logging.WARNING, logger="shortener_app.url_checks"):
+        await check_with_claude("https://example.com/")  # fail open: no exception
+    assert "Claude check failed" in caplog.text
+
+
+@pytest.mark.anyio
+async def test_claude_skipped_without_key():
+    # fake_settings has anthropic_api_key=None, and _claude_client isn't faked here
+    assert url_checks._claude_client() is None
+    await check_with_claude("https://example.com/")  # no exception = skipped

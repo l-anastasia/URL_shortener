@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{#
+  Not found page. Rendered by the 404 exception handler with:
+    link_missing = true   a short key that doesn't exist or was deleted
+    link_missing = false  any other wrong address
+#}
+<title>{% if link_missing %}Link not found{% else %}Page not found{% endif %} — Revelio</title>
+<link rel="stylesheet" href="{{ url_for('static', path='css/base.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', path='css/not-found.css') }}">
+</head>
+<body>
+
+{% include "partials/topbar.html" %}
+
+<div class="page">
+  <div class="card">
+    <div class="icon-badge">
+      {% if link_missing %}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18.84 12.25 1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="m5.17 11.75-1.71 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71"></path><line x1="8" y1="2" x2="8" y2="5"></line><line x1="2" y1="8" x2="5" y2="8"></line><line x1="16" y1="19" x2="16" y2="22"></line><line x1="19" y1="16" x2="22" y2="16"></line></svg>
+      {% else %}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+      {% endif %}
+    </div>
+
+    <span class="error-code">Error 404</span>
+
+    {% if link_missing %}
+    <h1>This link doesn't exist</h1>
+    <p class="subtitle">The key may be mistyped, or its owner deleted the link.</p>
+    {% else %}
+    <h1>Page not found</h1>
+    <p class="subtitle">The address may be mistyped, or the page no longer exists.</p>
+    {% endif %}
+
+    {# The path the visitor tried, so they can spot a typo #}
+    <p class="tried" title="{{ request.url.path }}">{{ request.url.netloc }}{{ request.url.path }}</p>
+
+    {% if not link_missing %}
+    <div class="actions">
+      <a href="{{ url_for('redirect_page') }}" class="btn btn-primary">I have a key</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+</body>
+</html>

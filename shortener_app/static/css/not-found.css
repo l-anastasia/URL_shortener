@@ -1,0 +1,20 @@
+/* Not found page (404.html) */
+
+.card{max-width:420px;text-align:center}
+
+.icon-badge{width:44px;height:44px;border-radius:12px;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:var(--muted)}
+.icon-badge svg{width:22px;height:22px}
+
+/* Small pill above the heading, same look as the home page kicker */
+.error-code{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--primary);background:rgba(79,70,229,.08);border:1px solid rgba(79,70,229,.2);border-radius:999px;padding:3px 10px;margin-bottom:12px}
+
+/* The address the visitor tried; long ones are cut off with "…" */
+.tried{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:var(--muted);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;margin:0 0 20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tried:last-child{margin-bottom:0}
+
+/* Two buttons side by side, stacked on narrow screens */
+.actions{display:flex;gap:10px}
+.actions .btn{flex:1;text-decoration:none}
+.btn-secondary{background:var(--surface);color:var(--text);border-color:var(--border)}
+.btn-secondary:hover{background:var(--surface-2)}
+@media (max-width:420px){ .actions{flex-direction:column} }

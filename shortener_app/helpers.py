@@ -1,5 +1,5 @@
 from collections.abc import AsyncIterator
-from typing import Annotated
+from typing import Annotated, NoReturn
 
 from fastapi import Depends, HTTPException, Request
 from pydantic import ValidationError
@@ -72,10 +72,18 @@ def log_in(request: Request, user: models.User):
     request.session["user_id"] = user.id
     request.session["username"] = user.username
 
+class LinkNotFound(HTTPException):
+    """A short key that doesn't exist or was deleted."""
 
-def raise_not_found(request):
+
+def raise_not_found(request) -> NoReturn:
     message = f"URL '{request.url}' doesn't exist"
     raise HTTPException(status_code=404, detail=message)
+
+
+def raise_link_not_found(request: Request) -> NoReturn:
+    message = f"Link '{request.url}' doesn't exist"
+    raise LinkNotFound(status_code=404, detail=message)
 
 
 def validation_error(e: ValidationError) -> str:

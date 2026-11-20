@@ -72,6 +72,7 @@ def log_in(request: Request, user: models.User):
     request.session["user_id"] = user.id
     request.session["username"] = user.username
 
+
 class LinkNotFound(HTTPException):
     """A short key that doesn't exist or was deleted."""
 

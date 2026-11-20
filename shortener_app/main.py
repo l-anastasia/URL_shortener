@@ -97,6 +97,7 @@ async def not_found(request: Request, exc: Exception):
 
 app.add_exception_handler(StarletteHTTPException, not_found)
 
+
 @app.get("/", response_class=HTMLResponse, name="home")
 async def read_root(request: Request):
     return templates.TemplateResponse(request, "index.html")

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, Form, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -11,6 +12,7 @@ from pydantic import ValidationError
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from . import crud, keygen, schemas, security, url_checks
@@ -19,8 +21,10 @@ from .database import engine
 from .helpers import (
     CurrentUser,
     DBSession,
+    LinkNotFound,
     get_admin_info,
     log_in,
+    raise_link_not_found,
     raise_not_found,
     validation_error,
 )
@@ -76,6 +80,22 @@ async def unsafe_url(request: Request, exc: Exception):
 
 
 app.add_exception_handler(url_checks.UnsafeURLError, unsafe_url)
+
+
+async def not_found(request: Request, exc: Exception):
+    assert isinstance(exc, StarletteHTTPException)  # tells mypy what exc is
+    wants_html = "text/html" in request.headers.get("accept", "")
+    if exc.status_code == 404 and wants_html and "HX-Request" not in request.headers:
+        return templates.TemplateResponse(
+            request,
+            "404.html",
+            {"link_missing": isinstance(exc, LinkNotFound)},
+            status_code=404,
+        )
+    return await http_exception_handler(request, exc)
+
+
+app.add_exception_handler(StarletteHTTPException, not_found)
 
 
 @app.get("/", response_class=HTMLResponse, name="home")
@@ -173,11 +193,16 @@ async def lookup_key(request: Request, db: DBSession, key: str = ""):
 @app.get("/{url_key}")
 @limiter.limit("20/minute")
 async def forward_to_target_url(url_key: str, request: Request, db: DBSession):
+    url_key = url_key.upper()  # keys are uppercase; people retype them in lowercase
+    could_be_key = (
+        len(url_key) == keygen.KEY_LENGTH and url_key.isascii() and url_key.isalnum()
+    )
+    if not could_be_key:
+        raise_not_found(request)  # "Page not found", no database lookup
     if db_url := await crud.get_db_url_by_key(db=db, url_key=url_key):
         await crud.update_db_clicks(db=db, db_url=db_url)
         return RedirectResponse(db_url.target_url)
-    else:
-        raise_not_found(request)
+    raise_link_not_found(request)  # "This link doesn't exist"
 
 
 # for API, Swagger etc
